@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>2D/Hybrid/Stop-Motion Animation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #000000;
+            --muted: #d9d9d9;
+            --max-width: 1440px;
+            --side-pad: clamp(16px, 2.5vw, 32px);
+            --section-gap: clamp(48px, 8vw, 120px);
+            --title-size: clamp(3rem, 8vw, 5rem);
+            --h2-size: clamp(2rem, 5vw, 3.5rem);
+            --h3-size: clamp(1.5rem, 4vw, 2.5rem);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Instrument Sans", sans-serif;
+        }
+
+        .container {
+            width: min(100%, var(--max-width));
+            margin: 0 auto;
+            padding: 24px var(--side-pad) 80px;
+        }
+
+        .nav-link {
+            display: inline-block;
+            margin-bottom: 40px;
+            color: inherit;
+            text-decoration: none;
+            font-size: 1.2rem;
+            transition: opacity 0.2s ease;
+        }
+
+        .nav-link:hover {
+            opacity: 0.6;
+        }
+
+        h1,
+        .site-title {
+            font-size: var(--title-size);
+            font-weight: 400;
+            margin: 0 0 40px 0;
+            line-height: 1;
+        }
+
+        h2,
+        .page-title {
+            font-size: var(--h2-size);
+            font-weight: 400;
+            margin: var(--section-gap) 0 10px 0;
+            line-height: 1.1;
+        }
+
+        h3,
+        .section-title {
+            font-size: var(--h3-size);
+            font-weight: 400;
+            margin: 40px 0 20px 0;
+            line-height: 1.1;
+        }
+
+        h4,
+        .subsection-title {
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            font-weight: 500;
+            margin: 10px 0 20px 0;
+            line-height: 1.1;
+        }
+
+        p {
+            font-size: clamp(1rem, 2vw, 1.25rem);
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 0 40px 0;
+            font-weight: 400;
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            width: 100%;
+        }
+
+        .video-item {
+            width: 100%;
+            aspect-ratio: 9 / 16;
+            background: var(--muted);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000;
+        }
+
+        .video-grid-long {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            width: 100%;
+            margin-bottom: 60px;
+        }
+
+        .video-item-long {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: var(--muted);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            width: 100%;
+            margin-bottom: 60px;
+        }
+
+        .gallery-item {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            background: var(--muted);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .animation-item {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .animation-item p {
+            margin: 16px 0 0 0;
+            font-size: clamp(1rem, 2vw, 1.15rem);
+        }
+
+        @media (max-width: 900px) {
+
+            .video-grid,
+            .video-grid-long,
+            .gallery-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+
+            .video-grid,
+            .video-grid-long,
+            .gallery-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <main class="container">
+            <a href="index.html" class="nav-link">&larr; Back to Home</a>
+
+            <h1 class="site-title">
+                JOE MICALLEF<br>
+                CREATIVE DIRECTOR<br>
+                MULTIMEDIA/DESIGN/CODE
+            </h1>
+            <h2 class="page-title">2D/Hybrid/Stop-Motion Animation</h2>
+
+            <p style="margin-top: 24px; margin-bottom: 60px;">Some early examples of my hand drawn, hybrid and
+                stop-motion animation. I still enjoy hand-drawn animation, and to this day teach a 2D animation night
+                class at Pasadena City College. Currently I'm using Blender Grease Pencil and Moho for 2D projects.</p>
+
+            <div class="video-grid-long">
+                <div class="animation-item">
+                    <h4 class="subsection-title" style="margin: 0 0 12px 0;">Mind Wiggles</h4>
+                    <div class="video-item-long">
+                        <iframe src="https://www.youtube.com/embed/XguKsssIP_k?si=AepvcoWRKySpMvt9"
+                            title="YouTube video player" frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
+                            style="width: 100%; height: 100%;"></iframe>
+                    </div>
+                    <div style="flex-grow: 1; margin-top: 16px;">
+                        <p style="margin: 0 0 12px 0;">A wacky, whimsical journey following a "stream of consciousness".</p>
+                        <p style="margin: 0;">Hand drawn and painted, traditional cell animation shot on an Oxberry camera by Joe Micallef. With a musical score by Austin Wintory.</p>
+                    </div>
+                </div>
+
+                <div class="animation-item">
+                    <h4 class="subsection-title" style="margin: 0 0 12px 0;">The Interlopers</h4>
+                    <div class="video-item-long">
+                        <iframe src="https://www.youtube.com/embed/g59mluClY8k?si=iAIIQZJtYCFfRJC6"
+                            title="YouTube video player" frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
+                            style="width: 100%; height: 100%;"></iframe>
+                    </div>
+                    <div style="flex-grow: 1; margin-top: 16px;">
+                        <p style="margin: 0;">Scary stop motion animation based on the classic short story by Saki.<br>Animated, designed and directed by Joe Micallef and Jan Pfenninger.</p>
+                    </div>
+                </div>
+
+                <div class="animation-item">
+                    <h4 class="subsection-title" style="margin: 0 0 12px 0;">Tully Explains Emotion</h4>
+                    <div class="video-item-long">
+                        <iframe src="https://www.youtube.com/embed/KAaDj3NkBdc?si=bD35mfEGrwY1By31"
+                            title="YouTube video player" frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
+                            style="width: 100%; height: 100%;"></iframe>
+                    </div>
+                    <div style="flex-grow: 1; margin-top: 16px;">
+                        <p style="margin: 0;">An animated sequence I created for Brian Keithley's film "Tully and Elsa". The animatronic Tully was created by Nacho Diaz at Plan 9 FX.<br><br>It may look like flash, but this is entirely hand-drawn and scanned into After Effects. The spaceship at the beginning was modeled in Maya and rendered as vector graphics. The space scene was and various effects were created in Maya as well.</p>
+                    </div>
+                </div>
+
+                <div class="animation-item">
+                    <h4 class="subsection-title" style="margin: 0 0 12px 0;">Urban Relations of the Lower Phylums</h4>
+                    <div class="video-item-long">
+                        <iframe src="https://www.youtube.com/embed/IjNRoiMx14w?si=4ObL_wW9cCF99ZxQ"
+                            title="YouTube video player" frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
+                            style="width: 100%; height: 100%;"></iframe>
+                    </div>
+                    <div style="flex-grow: 1; margin-top: 16px;">
+                        <p style="margin: 0;">A hybrid, experimental short, combining hand-drawn walk cycles and textures in Maya and composited in After Effects.</p>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+</body>
+
+</html>
