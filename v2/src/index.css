@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --c-ink: #0a0a0a;
+    --c-ink-2: #0d0d0e;
+    --c-cream: #f6f5f2;
+    --c-cream-2: #efece7;
+    --c-blush: #efe1d8;
+    --c-rust: #b8492c;
+    --c-glow: rgba(155, 35, 35, 0.32);
+    --c-green: #0a3d2e;
+  }
+  body {
+    @apply bg-background text-foreground antialiased font-sans;
+  }
+}
+
+@layer utilities {
+  .hero-wrap {
+    position: relative;
+    height: 300vh; /* Shorter for portfolio */
+    background: var(--c-ink);
+  }
+  .hero-sticky {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+    background: #060606;
+  }
+  .hero-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.04);
+    filter: saturate(1.05) contrast(1.04);
+  }
+  .gallery-track-container {
+    mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+  }
+  .pause-on-hover:hover .animate-scroll-left {
+    animation-play-state: paused;
+  }
+}
