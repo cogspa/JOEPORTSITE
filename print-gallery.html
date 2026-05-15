@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Print Gallery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #000000;
+            --muted: #d9d9d9;
+            --max-width: 1440px;
+            --side-pad: clamp(16px, 2.5vw, 32px);
+            --section-gap: clamp(48px, 8vw, 120px);
+            --title-size: clamp(3rem, 8vw, 5rem);
+            --h2-size: clamp(2rem, 5vw, 3.5rem);
+            --h3-size: clamp(1.5rem, 4vw, 2.5rem);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Instrument Sans", sans-serif;
+        }
+
+        .container {
+            width: min(100%, var(--max-width));
+            margin: 0 auto;
+            padding: 24px var(--side-pad) 80px;
+        }
+
+        .nav-link {
+            display: inline-block;
+            margin-bottom: 40px;
+            color: inherit;
+            text-decoration: none;
+            font-size: 1.2rem;
+            transition: opacity 0.2s ease;
+        }
+
+        .nav-link:hover {
+            opacity: 0.6;
+        }
+
+        h1,
+        .site-title {
+            font-size: var(--title-size);
+            font-weight: 400;
+            margin: 0 0 40px 0;
+            line-height: 1;
+        }
+
+        h2,
+        .page-title {
+            font-size: var(--h2-size);
+            font-weight: 400;
+            margin: var(--section-gap) 0 40px 0;
+            line-height: 1.1;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            width: 100%;
+            margin-bottom: 60px;
+        }
+
+        .gallery-item {
+            width: 100%;
+            background: var(--muted);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            display: block;
+        }
+
+        @media (max-width: 900px) {
+            .gallery-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .gallery-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <main class="container">
+            <a href="index.html" class="nav-link">&larr; Back to Home</a>
+
+            <h1 class="site-title">
+                JOE MICALLEF<br>
+                CREATIVE DIRECTOR<br>
+                MULTIMEDIA/DESIGN/CODE
+            </h1>
+            <h2 class="page-title">Print Gallery</h2>
+
+            <div class="gallery-grid">
+                <div class="gallery-item"><img src="port_art/A1.png" alt="Print 1"></div>
+                <div class="gallery-item"><img src="port_art/A2.png" alt="Print 2"></div>
+                <div class="gallery-item"><img src="port_art/A3.png" alt="Print 3"></div>
+                <div class="gallery-item"><img src="port_art/A4.png" alt="Print 4"></div>
+                <div class="gallery-item"><img src="port_art/A5.png" alt="Print 5"></div>
+                <div class="gallery-item"><img src="port_art/A6.png" alt="Print 6"></div>
+            </div>
+
+        </main>
+    </div>
+</body>
+
+</html>

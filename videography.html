@@ -141,16 +141,37 @@
             justify-content: center;
         }
 
-        .gallery-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
+        .gallery-wrapper {
             width: 100%;
+            overflow: hidden;
             margin-bottom: 60px;
+            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+        }
+
+        .gallery-track {
+            display: flex;
+            gap: 24px;
+            width: max-content;
+            animation: scroll-left-to-right 40s linear infinite;
+        }
+
+        .gallery-track:hover {
+            animation-play-state: paused;
+        }
+
+        @keyframes scroll-left-to-right {
+            0% {
+                transform: translateX(calc(-50% - 12px));
+            }
+            100% {
+                transform: translateX(0);
+            }
         }
 
         .gallery-item {
-            width: 100%;
+            width: 400px;
+            flex-shrink: 0;
             aspect-ratio: 4 / 3;
             background: var(--muted);
             border-radius: 8px;
@@ -167,18 +188,22 @@
         @media (max-width: 900px) {
 
             .video-grid,
-            .video-grid-long,
-            .gallery-grid {
+            .video-grid-long {
                 grid-template-columns: repeat(2, 1fr);
+            }
+            .gallery-item {
+                width: 300px;
             }
         }
 
         @media (max-width: 768px) {
 
             .video-grid,
-            .video-grid-long,
-            .gallery-grid {
+            .video-grid-long {
                 grid-template-columns: 1fr;
+            }
+            .gallery-item {
+                width: 250px;
             }
         }
     </style>
@@ -217,17 +242,30 @@
                 I was responsible for both team leadership and oversight of the studio’s production equipment, technical
                 infrastructure, control decks, and servers.</p>
 
-            <div class="gallery-grid">
-                <div class="gallery-item"><img src="gallery/IMG_2642.jpeg" alt="Broadcast Garage"></div>
-                <div class="gallery-item"><img src="gallery/IMG_2643.jpeg" alt="Broadcast Garage"></div>
-                <div class="gallery-item"><img src="gallery/IMG_2654.jpeg" alt="Broadcast Garage"></div>
-                <div class="gallery-item"><img src="gallery/IMG_2667.jpeg" alt="Broadcast Garage"></div>
-                <div class="gallery-item"><img src="gallery/IMG_2671.jpeg" alt="Broadcast Garage"></div>
-                <div class="gallery-item"><img src="gallery/IMG_2676.jpeg" alt="Broadcast Garage"></div>
-                <div class="gallery-item"><img src="gallery/IMG_4530.jpeg" alt="Broadcast Garage"></div>
-                <div class="gallery-item"><img src="gallery/P1000235.JPG" alt="Broadcast Garage"></div>
-                <div class="gallery-item"><img src="gallery/P1000327.JPG" alt="Broadcast Garage"></div>
-                <div class="gallery-item"><img src="gallery/P1000332.JPG" alt="Broadcast Garage"></div>
+            <div class="gallery-wrapper">
+                <div class="gallery-track">
+                    <div class="gallery-item"><img src="gallery/IMG_2642.jpeg" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/IMG_2643.jpeg" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/IMG_2654.jpeg" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/IMG_2667.jpeg" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/IMG_2671.jpeg" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/IMG_2676.jpeg" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/IMG_4530.jpeg" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/P1000235.JPG" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/P1000327.JPG" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/P1000332.JPG" alt="Broadcast Garage"></div>
+                    <!-- Duplicated for seamless loop -->
+                    <div class="gallery-item"><img src="gallery/IMG_2642.jpeg" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/IMG_2643.jpeg" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/IMG_2654.jpeg" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/IMG_2667.jpeg" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/IMG_2671.jpeg" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/IMG_2676.jpeg" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/IMG_4530.jpeg" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/P1000235.JPG" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/P1000327.JPG" alt="Broadcast Garage"></div>
+                    <div class="gallery-item"><img src="gallery/P1000332.JPG" alt="Broadcast Garage"></div>
+                </div>
             </div>
 
             <h4 class="subsection-title" style="margin-top: 40px;">Long-Format Technical Video Series</h4>
