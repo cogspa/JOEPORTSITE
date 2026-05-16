@@ -41,6 +41,7 @@ export default function HeroVideo() {
           src="/video/JoeMicallefDemoReel.mp4"
           muted
           playsInline
+          autoPlay
           preload="auto"
         />
         
