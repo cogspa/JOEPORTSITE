@@ -769,14 +769,35 @@
                 }
             }
 
-            // Load saved preference
-            const savedPref = localStorage.getItem("layout-parallax") === "true";
-            toggle.checked = savedPref;
-            updateLayout(savedPref);
+            // Check URL parameters or hashes for direct layout overrides
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasParallaxParam = urlParams.has("parallax");
+            const parallaxParamVal = urlParams.get("parallax") === "true" || urlParams.get("parallax") === "1";
+            
+            const hash = window.location.hash;
+            const hasParallaxHash = hash === "#parallax";
+            const hasClassicHash = hash === "#classic" || hash === "#normal";
+
+            let initialParallax = localStorage.getItem("layout-parallax") === "true";
+            
+            if (hasParallaxParam) {
+                initialParallax = parallaxParamVal;
+            } else if (hasParallaxHash) {
+                initialParallax = true;
+            } else if (hasClassicHash) {
+                initialParallax = false;
+            }
+
+            toggle.checked = initialParallax;
+            updateLayout(initialParallax);
 
             toggle.addEventListener("change", (e) => {
                 const active = e.target.checked;
                 localStorage.setItem("layout-parallax", active ? "true" : "false");
+                // Clear any layout overrides from the address bar to avoid confusion
+                if (window.location.search || window.location.hash) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
                 updateLayout(active);
             });
 
