@@ -106,6 +106,8 @@ uniform float uDistort;
 uniform float uSpec;
 uniform float uTime;
 uniform vec2  uFit;
+uniform float uReflect;
+uniform float uTransparency;
 
 vec2 vidUV(vec2 p){
   p.x = mix(p.x, 1.0 - p.x, uMirror);
@@ -131,15 +133,29 @@ void main(){
   float h  = H(vUv);
   vec3 n = normalize(vec3(-nx * 30.0, -ny * 30.0, 1.0));
 
+  // Reflection (from mirrored vertical offset)
   vec2 rc   = vec2(vUv.x, 2.0 * wLine - vUv.y);
-  vec2 base = rc + n.xy * uDistort;
-
-  float rr = texture2D(uVideo, vidUV(base + n.xy * 0.007)).r;
-  float gg = texture2D(uVideo, vidUV(base)).g;
-  float bb = texture2D(uVideo, vidUV(base - n.xy * 0.007)).b;
+  vec2 baseRefl = rc + n.xy * uDistort;
+  float rr = texture2D(uVideo, vidUV(baseRefl + n.xy * 0.007)).r;
+  float gg = texture2D(uVideo, vidUV(baseRefl)).g;
+  float bb = texture2D(uVideo, vidUV(baseRefl - n.xy * 0.007)).b;
   vec3 refl = vec3(rr, gg, bb);
 
-  float lum = dot(refl, vec3(0.299, 0.587, 0.114));
+  // Refraction (submerged directly under waterline)
+  vec2 baseRefr = vUv + n.xy * uDistort * 0.7;
+  float rRefr = texture2D(uVideo, vidUV(baseRefr + n.xy * 0.007)).r;
+  float gRefr = texture2D(uVideo, vidUV(baseRefr)).g;
+  float bRefr = texture2D(uVideo, vidUV(baseRefr - n.xy * 0.007)).b;
+  vec3 refr = vec3(rRefr, gRefr, bRefr);
+
+  // Z-depth absorption (fading into the tub)
+  float depth = clamp((wLine - vUv.y) / max(wLine, 0.001), 0.0, 1.0);
+  vec3 submerged = mix(refr * mix(1.0, 0.0, pow(depth, 1.2 * uTransparency)), vec3(0.0), uTransparency * 0.4);
+
+  // Blend reflection surface and refraction/submerged body
+  vec3 blendedVideo = mix(submerged, refl, uReflect);
+
+  float lum = dot(blendedVideo, vec3(0.299, 0.587, 0.114));
   vec3 chrome = pow(lum, 1.8) * vec3(0.40, 0.46, 0.56);
 
   vec3 L  = normalize(vec3(0.25, 0.9, 0.5));
@@ -149,8 +165,9 @@ void main(){
   float sheen = pow(max(dot(n,  hv), 0.0), 16.0);
   vec3 col = chrome + (spec * 1.25 + sheen * 0.14) * uSpec * vec3(0.85, 0.92, 1.0);
 
-  float depth = clamp((wLine - vUv.y) / max(wLine, 0.001), 0.0, 1.0);
+  // Depth color shading & tub liquid glow wash
   col *= mix(1.0, 0.28, pow(depth, 0.8));
+  col += vec3(0.08, 0.28, 0.48) * pow(depth, 1.4) * (1.0 - uReflect);
   col += vec3(0.55, 0.66, 0.82) * abs(h) * 1.5;
 
   float edge = smoothstep(0.010, 0.0, wLine - vUv.y);
@@ -214,6 +231,7 @@ class GooEngine {
       simTexel: U(this.compProg, "uSimTexel"), water: U(this.compProg, "uWater"),
       mirror: U(this.compProg, "uMirror"), distort: U(this.compProg, "uDistort"),
       spec: U(this.compProg, "uSpec"), time: U(this.compProg, "uTime"), fit: U(this.compProg, "uFit"),
+      reflect: U(this.compProg, "uReflect"), transparency: U(this.compProg, "uTransparency"),
     };
 
     this.rippleTex = [null, null];
@@ -329,6 +347,8 @@ class GooEngine {
     gl.uniform1f(this.compU.spec, params.spec);
     gl.uniform1f(this.compU.time, (performance.now() - this.t0) / 1000);
     gl.uniform2f(this.compU.fit, fit[0], fit[1]);
+    gl.uniform1f(this.compU.reflect, params.reflect);
+    gl.uniform1f(this.compU.transparency, params.transparency);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     this.vidIdx = prevVid;
@@ -354,7 +374,7 @@ const FACE_MODEL =
   "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
 const HAND_POINTS = [0, 4, 8, 12, 16, 20];
-const FACE_POINTS = [1, 152, 234, 454];
+const FACE_POINTS = [0, 4, 10, 18, 33, 61, 152, 234, 263, 291, 374, 454];
 
 async function createTrackers(onStatus = () => {}) {
   onStatus("Loading vision runtime");
@@ -631,6 +651,8 @@ export default function ChromeGooMirror() {
     spec: 1.0,
     mirror: 1,
     faceOn: true,
+    reflect: 0.6,
+    transparency: 0.65,
   });
   const paramsRef = useRef(params);
   paramsRef.current = params;
@@ -891,6 +913,10 @@ export default function ChromeGooMirror() {
                   onChange={set("distort")} fmt={(v) => v.toFixed(2)} />
                 <Slider label="Shine" value={params.spec} min={0} max={2} step={0.05}
                   onChange={set("spec")} fmt={(v) => v.toFixed(2)} />
+                <Slider label="Reflection" value={params.reflect} min={0.0} max={1.0} step={0.05}
+                  onChange={set("reflect")} fmt={(v) => `${Math.round(v * 100)}%`} />
+                <Slider label="Transparency" value={params.transparency} min={0.0} max={1.0} step={0.05}
+                  onChange={set("transparency")} fmt={(v) => `${Math.round((1 - v) * 100)}%`} />
               </div>
               <div className="cgm-foot">
                 <button className="cgm-btn" style={{ opacity: params.faceOn ? 1 : 0.5 }}
