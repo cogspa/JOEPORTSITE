@@ -275,7 +275,9 @@ class GooEngine {
     }
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
 
-    const va = video.videoWidth / video.videoHeight;
+    const vw = video.videoWidth || video.width || 640;
+    const vh = video.videoHeight || video.height || 360;
+    const va = vw / vh;
     const ca = canvas.width / canvas.height;
     const fit = ca > va ? [1, va / ca] : [ca / va, 1];
     this.lastFit = fit;
@@ -559,6 +561,61 @@ export default function ChromeGooMirror() {
   const [tracking, setTracking] = useState(true);
   const [showPanel, setShowPanel] = useState(true);
   const [recording, setRecording] = useState(false);
+  const [isFallback, setIsFallback] = useState(false);
+
+  const isFallbackRef = useRef(false);
+  isFallbackRef.current = isFallback;
+  const fallbackCanvasRef = useRef(null);
+
+  const getFallbackCanvas = () => {
+    if (!fallbackCanvasRef.current) {
+      const c = document.createElement("canvas");
+      c.width = 640;
+      c.height = 360;
+      fallbackCanvasRef.current = c;
+    }
+    const c = fallbackCanvasRef.current;
+    const ctx = c.getContext("2d");
+    const t = performance.now() * 0.001;
+
+    // Draw dark background gradient
+    const grad = ctx.createLinearGradient(0, 0, c.width, c.height);
+    grad.addColorStop(0, "#081426");
+    grad.addColorStop(0.5, "#0b2545");
+    grad.addColorStop(1, "#03071e");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, c.width, c.height);
+
+    // Draw tech gridlines
+    ctx.strokeStyle = "rgba(0, 180, 216, 0.15)";
+    ctx.lineWidth = 1;
+    const grid = 40;
+    for (let x = 0; x < c.width; x += grid) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, c.height);
+      ctx.stroke();
+    }
+    for (let y = 0; y < c.height; y += grid) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(c.width, y);
+      ctx.stroke();
+    }
+
+    // Draw moving glowing color sweeps
+    ctx.fillStyle = "rgba(0, 180, 216, 0.12)";
+    for (let i = 0; i < 3; i++) {
+      const cx = c.width * 0.5 + Math.sin(t * 0.5 + i) * c.width * 0.3;
+      const cy = c.height * 0.5 + Math.cos(t * 0.7 + i) * c.height * 0.3;
+      const r = 80 + Math.sin(t + i) * 20;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    return c;
+  };
 
   const [params, setParams] = useState({
     water: 0.5,
@@ -577,6 +634,7 @@ export default function ChromeGooMirror() {
 
   const start = useCallback(async () => {
     setError("");
+    setIsFallback(false);
     setPhase("loading");
     try {
       setStatus("Requesting camera");
@@ -614,8 +672,16 @@ export default function ChromeGooMirror() {
     }
   }, []);
 
+  const startFallback = useCallback(() => {
+    setError("");
+    setIsFallback(true);
+    setTracking(false);
+    setPhase("running");
+  }, []);
+
   const stop = useCallback(() => {
     setPhase("idle");
+    setIsFallback(false);
     setRecording(false);
     cancelAnimationFrame(rafRef.current);
     if (recRef.current && recRef.current.state !== "inactive") {
@@ -661,8 +727,10 @@ export default function ChromeGooMirror() {
 
     const loop = () => {
       rafRef.current = requestAnimationFrame(loop);
-      const video = videoRef.current;
-      if (!video || video.readyState < 2) return;
+      const isFb = isFallbackRef.current;
+      const video = isFb ? getFallbackCanvas() : videoRef.current;
+      if (!video) return;
+      if (video instanceof HTMLVideoElement && video.readyState < 2) return;
       const p = paramsRef.current;
 
       const pts = rigRef.current ? rigRef.current.getPoints(video, engine, p) : [];
@@ -764,11 +832,31 @@ export default function ChromeGooMirror() {
             waterline echoes in the reflection below.
           </div>
           {phase === "idle" ? (
-            <button className="cgm-start" onClick={start}>Turn on camera</button>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+              <button className="cgm-start" onClick={start}>Turn on camera</button>
+              <button 
+                className="cgm-toggle" 
+                style={{ position: "static", transform: "none", background: "rgba(30,34,46,0.7)" }}
+                onClick={startFallback}
+              >
+                Run Pointer-Only (No Camera)
+              </button>
+            </div>
           ) : (
             <div className="cgm-status">{status}…</div>
           )}
-          {error && <div className="cgm-error">{error}</div>}
+          {error && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", marginTop: "10px" }}>
+              <div className="cgm-error">{error}</div>
+              <button 
+                className="cgm-start" 
+                style={{ padding: "8px 20px", fontSize: "12px" }}
+                onClick={startFallback}
+              >
+                Launch Pointer-Only Mode
+              </button>
+            </div>
+          )}
         </div>
       )}
 
