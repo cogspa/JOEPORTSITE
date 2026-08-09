@@ -1,280 +1,815 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Play, Code, Clipboard, Check, Sparkles, Layers, Video, Move, Globe } from "lucide-react";
+/* ============================================================
+   ChromeGooMirror.jsx — single-file LIVE artifact
+
+   This is the running tool, not a description of it. Everything
+   from the multi-file repo (gooEngine.js + tracking.js + App.jsx)
+   is inlined here so the artifact loader only needs one .jsx.
+
+   MediaPipe is pulled from the jsDelivr ESM CDN at runtime, so
+   the host site needs no new npm dependency. If the models fail
+   to load, the toy keeps running on frame-difference wake +
+   pointer splats instead of dying.
+   ============================================================ */
+
+import React, { useRef, useEffect, useState, useCallback } from "react";
+
+/* ---------------------------------------------------------- */
+/* WebGL engine                                               */
+/* ---------------------------------------------------------- */
+
+const MAX_POINTS = 24;
+
+const VERT = `
+attribute vec2 aPos;
+varying vec2 vUv;
+void main(){
+  vUv = aPos * 0.5 + 0.5;
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}`;
+
+const SIM_FRAG = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uRipple;
+uniform sampler2D uCur;
+uniform sampler2D uPrev;
+uniform vec2  uTexel;
+uniform float uWater;
+uniform float uDamp;
+uniform float uWake;
+uniform float uMirror;
+uniform vec2  uFit;
+uniform float uAspect;
+uniform vec3  uPts[${MAX_POINTS}];
+uniform int   uNum;
+
+vec2 vidUV(vec2 p){
+  p.x = mix(p.x, 1.0 - p.x, uMirror);
+  return (p - 0.5) * uFit + 0.5;
+}
+float hgt(vec2 p){ return texture2D(uRipple, p).r - 0.5; }
+
+void main(){
+  vec4 s = texture2D(uRipple, vUv);
+  float c = s.r - 0.5;
+  float p = s.g - 0.5;
+
+  float sum = hgt(vUv + vec2(uTexel.x, 0.0))
+            + hgt(vUv - vec2(uTexel.x, 0.0))
+            + hgt(vUv + vec2(0.0, uTexel.y))
+            + hgt(vUv - vec2(0.0, uTexel.y));
+
+  float next = sum * 0.5 - p;
+  next *= uDamp;
+
+  if (vUv.y < uWater){
+    for (int i = 0; i < ${MAX_POINTS}; i++){
+      if (i >= uNum) break;
+      vec2 d = vUv - uPts[i].xy;
+      d.x *= uAspect;
+      float g = exp(-dot(d, d) / 0.0011);
+      next += uPts[i].z * g;
+    }
+
+    if (uWake > 0.001){
+      vec2 rc = vec2(vUv.x, 2.0 * uWater - vUv.y);
+      if (rc.y <= 1.0){
+        vec2 tv = vidUV(rc);
+        vec3 a = texture2D(uCur,  tv).rgb;
+        vec3 b = texture2D(uPrev, tv).rgb;
+        float m = max(0.0, length(a - b) - 0.10);
+        float fade = 1.0 - 0.5 * smoothstep(0.0, uWater, uWater - vUv.y);
+        next += m * uWake * fade;
+      }
+      float band = smoothstep(0.06, 0.0, uWater - vUv.y);
+      if (band > 0.001){
+        vec2 tv2 = vidUV(vec2(vUv.x, uWater + 0.025));
+        float m2 = max(0.0, length(texture2D(uCur, tv2).rgb - texture2D(uPrev, tv2).rgb) - 0.10);
+        next += m2 * uWake * band * 1.6;
+      }
+    }
+  }
+
+  next = clamp(next, -0.49, 0.49);
+  gl_FragColor = vec4(next + 0.5, c + 0.5, 0.0, 1.0);
+}`;
+
+const COMP_FRAG = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uRipple;
+uniform sampler2D uVideo;
+uniform vec2  uSimTexel;
+uniform float uWater;
+uniform float uMirror;
+uniform float uDistort;
+uniform float uSpec;
+uniform float uTime;
+uniform vec2  uFit;
+
+vec2 vidUV(vec2 p){
+  p.x = mix(p.x, 1.0 - p.x, uMirror);
+  return (p - 0.5) * uFit + 0.5;
+}
+float H(vec2 p){ return texture2D(uRipple, p).r - 0.5; }
+
+void main(){
+  float lineH = H(vec2(vUv.x, max(uWater - 2.0 * uSimTexel.y, 0.0)));
+  float wLine = uWater + lineH * 0.05;
+
+  if (vUv.y > wLine){
+    vec3 col = texture2D(uVideo, vidUV(vUv)).rgb;
+    col = pow(col, vec3(1.06));
+    float sh = smoothstep(0.06, 0.0, vUv.y - wLine);
+    col *= 1.0 - 0.38 * sh;
+    gl_FragColor = vec4(col, 1.0);
+    return;
+  }
+
+  float nx = H(vUv + vec2(uSimTexel.x, 0.0)) - H(vUv - vec2(uSimTexel.x, 0.0));
+  float ny = H(vUv + vec2(0.0, uSimTexel.y)) - H(vUv - vec2(0.0, uSimTexel.y));
+  float h  = H(vUv);
+  vec3 n = normalize(vec3(-nx * 30.0, -ny * 30.0, 1.0));
+
+  vec2 rc   = vec2(vUv.x, 2.0 * wLine - vUv.y);
+  vec2 base = rc + n.xy * uDistort;
+
+  float rr = texture2D(uVideo, vidUV(base + n.xy * 0.007)).r;
+  float gg = texture2D(uVideo, vidUV(base)).g;
+  float bb = texture2D(uVideo, vidUV(base - n.xy * 0.007)).b;
+  vec3 refl = vec3(rr, gg, bb);
+
+  float lum = dot(refl, vec3(0.299, 0.587, 0.114));
+  vec3 chrome = pow(lum, 1.8) * vec3(0.40, 0.46, 0.56);
+
+  vec3 L  = normalize(vec3(0.25, 0.9, 0.5));
+  vec3 hv = normalize(L + vec3(0.0, 0.0, 1.0));
+  vec3 nA = normalize(vec3(n.x * 0.35, n.y, n.z));
+  float spec  = pow(max(dot(nA, hv), 0.0), 90.0);
+  float sheen = pow(max(dot(n,  hv), 0.0), 16.0);
+  vec3 col = chrome + (spec * 1.25 + sheen * 0.14) * uSpec * vec3(0.85, 0.92, 1.0);
+
+  float depth = clamp((wLine - vUv.y) / max(wLine, 0.001), 0.0, 1.0);
+  col *= mix(1.0, 0.28, pow(depth, 0.8));
+  col += vec3(0.55, 0.66, 0.82) * abs(h) * 1.5;
+
+  float edge = smoothstep(0.010, 0.0, wLine - vUv.y);
+  col += edge * vec3(0.9, 0.95, 1.0) * 0.7;
+  col += 0.018 * sin(vUv.x * 40.0 + uTime * 0.7 + h * 30.0) * (1.0 - depth);
+
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+function compile(gl, type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+function link(gl, vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl, gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, compile(gl, gl.FRAGMENT_SHADER, fs));
+  gl.bindAttribLocation(p, 0, "aPos");
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return p;
+}
+function makeTex(gl, w, h, data) {
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data || null);
+  return t;
+}
+
+class GooEngine {
+  constructor(canvas) {
+    this.canvas = canvas;
+    const gl = canvas.getContext("webgl", { antialias: false, alpha: false });
+    if (!gl) throw new Error("WebGL not available");
+    this.gl = gl;
+
+    const quad = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+    this.simProg = link(gl, VERT, SIM_FRAG);
+    this.compProg = link(gl, VERT, COMP_FRAG);
+    const U = (p, n) => gl.getUniformLocation(p, n);
+    this.simU = {
+      ripple: U(this.simProg, "uRipple"), cur: U(this.simProg, "uCur"), prev: U(this.simProg, "uPrev"),
+      texel: U(this.simProg, "uTexel"), water: U(this.simProg, "uWater"), damp: U(this.simProg, "uDamp"),
+      wake: U(this.simProg, "uWake"), mirror: U(this.simProg, "uMirror"), fit: U(this.simProg, "uFit"),
+      aspect: U(this.simProg, "uAspect"), pts: U(this.simProg, "uPts[0]"), num: U(this.simProg, "uNum"),
+    };
+    this.compU = {
+      ripple: U(this.compProg, "uRipple"), video: U(this.compProg, "uVideo"),
+      simTexel: U(this.compProg, "uSimTexel"), water: U(this.compProg, "uWater"),
+      mirror: U(this.compProg, "uMirror"), distort: U(this.compProg, "uDistort"),
+      spec: U(this.compProg, "uSpec"), time: U(this.compProg, "uTime"), fit: U(this.compProg, "uFit"),
+    };
+
+    this.rippleTex = [null, null];
+    this.rippleFbo = [null, null];
+    this.rippleIdx = 0;
+    this.vidTex = [makeTex(gl, 2, 2), makeTex(gl, 2, 2)];
+    this.vidIdx = 0;
+    this.simW = 0;
+    this.simH = 0;
+    this.lastFit = [1, 1];
+    this.t0 = performance.now();
+    this.ptsFlat = new Float32Array(MAX_POINTS * 3);
+  }
+
+  resize(w, h) {
+    const { gl, canvas } = this;
+    if (canvas.width === w && canvas.height === h) return;
+    canvas.width = w;
+    canvas.height = h;
+    const simW = 320;
+    const simH = Math.max(64, Math.round(simW * (h / w)));
+    const fill = new Uint8Array(simW * simH * 4);
+    for (let i = 0; i < fill.length; i += 4) { fill[i] = 128; fill[i + 1] = 128; fill[i + 3] = 255; }
+    for (let i = 0; i < 2; i++) {
+      if (this.rippleTex[i]) gl.deleteTexture(this.rippleTex[i]);
+      if (this.rippleFbo[i]) gl.deleteFramebuffer(this.rippleFbo[i]);
+      this.rippleTex[i] = makeTex(gl, simW, simH, fill);
+      this.rippleFbo[i] = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.rippleFbo[i]);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.rippleTex[i], 0);
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    this.simW = simW;
+    this.simH = simH;
+  }
+
+  /** MediaPipe normalized landmark (y DOWN) → canvas uv (y up). */
+  mapLandmark(nx, nyDown, mirror) {
+    const [fx, fy] = this.lastFit;
+    const vyUp = 1 - nyDown;
+    const mx = (nx - 0.5) / fx + 0.5;
+    const cy = (vyUp - 0.5) / fy + 0.5;
+    const cx = mirror ? 1 - mx : mx;
+    return { x: cx, y: cy };
+  }
+
+  render(video, pts, params) {
+    const { gl, canvas } = this;
+    if (!this.simW) return;
+
+    const curVid = this.vidIdx;
+    const prevVid = 1 - this.vidIdx;
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.bindTexture(gl.TEXTURE_2D, this.vidTex[curVid]);
+    try {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+    } catch (e) {
+      return;
+    }
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+
+    const va = video.videoWidth / video.videoHeight;
+    const ca = canvas.width / canvas.height;
+    const fit = ca > va ? [1, va / ca] : [ca / va, 1];
+    this.lastFit = fit;
+
+    const n = Math.min(pts.length, MAX_POINTS);
+    for (let i = 0; i < n; i++) {
+      this.ptsFlat[i * 3] = pts[i].x;
+      this.ptsFlat[i * 3 + 1] = pts[i].y;
+      this.ptsFlat[i * 3 + 2] = pts[i].s;
+    }
+
+    gl.useProgram(this.simProg);
+    gl.uniform1i(this.simU.ripple, 0);
+    gl.uniform1i(this.simU.cur, 1);
+    gl.uniform1i(this.simU.prev, 2);
+    gl.uniform2f(this.simU.texel, 1 / this.simW, 1 / this.simH);
+    gl.uniform1f(this.simU.water, params.water);
+    gl.uniform1f(this.simU.damp, params.damp);
+    gl.uniform1f(this.simU.wake, params.wake);
+    gl.uniform1f(this.simU.mirror, params.mirror);
+    gl.uniform2f(this.simU.fit, fit[0], fit[1]);
+    gl.uniform1f(this.simU.aspect, ca);
+    gl.uniform3fv(this.simU.pts, this.ptsFlat);
+    gl.uniform1i(this.simU.num, n);
+    gl.viewport(0, 0, this.simW, this.simH);
+    for (let s = 0; s < 2; s++) {
+      const src = this.rippleIdx;
+      const dst = 1 - this.rippleIdx;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.rippleFbo[dst]);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.rippleTex[src]);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.vidTex[curVid]);
+      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, this.vidTex[prevVid]);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      this.rippleIdx = dst;
+      gl.uniform1i(this.simU.num, 0);
+    }
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(this.compProg);
+    gl.uniform1i(this.compU.ripple, 0);
+    gl.uniform1i(this.compU.video, 1);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.rippleTex[this.rippleIdx]);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.vidTex[curVid]);
+    gl.uniform2f(this.compU.simTexel, 1 / this.simW, 1 / this.simH);
+    gl.uniform1f(this.compU.water, params.water);
+    gl.uniform1f(this.compU.mirror, params.mirror);
+    gl.uniform1f(this.compU.distort, params.distort);
+    gl.uniform1f(this.compU.spec, params.spec);
+    gl.uniform1f(this.compU.time, (performance.now() - this.t0) / 1000);
+    gl.uniform2f(this.compU.fit, fit[0], fit[1]);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    this.vidIdx = prevVid;
+  }
+
+  dispose() {
+    const { gl } = this;
+    this.rippleTex.forEach((t) => t && gl.deleteTexture(t));
+    this.rippleFbo.forEach((f) => f && gl.deleteFramebuffer(f));
+    this.vidTex.forEach((t) => gl.deleteTexture(t));
+  }
+}
+
+/* ---------------------------------------------------------- */
+/* MediaPipe tracking (loaded from CDN, optional)             */
+/* ---------------------------------------------------------- */
+
+const VISION_ESM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
+const WASM_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
+const HAND_MODEL =
+  "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+const FACE_MODEL =
+  "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+
+const HAND_POINTS = [0, 4, 8, 12, 16, 20];
+const FACE_POINTS = [1, 152, 234, 454];
+
+async function createTrackers(onStatus = () => {}) {
+  onStatus("Loading vision runtime");
+  const { FilesetResolver, HandLandmarker, FaceLandmarker } = await import(
+    /* @vite-ignore */ VISION_ESM
+  );
+  const fileset = await FilesetResolver.forVisionTasks(WASM_URL);
+
+  const build = async (delegate) => {
+    onStatus(`Loading hand model (${delegate})`);
+    const hands = await HandLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: HAND_MODEL, delegate },
+      runningMode: "VIDEO",
+      numHands: 2,
+    });
+    onStatus("Loading face model");
+    const face = await FaceLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: FACE_MODEL, delegate },
+      runningMode: "VIDEO",
+      numFaces: 1,
+    });
+    return new TrackerRig(hands, face);
+  };
+
+  try {
+    return await build("GPU");
+  } catch (e) {
+    return await build("CPU");
+  }
+}
+
+class TrackerRig {
+  constructor(hands, face) {
+    this.hands = hands;
+    this.face = face;
+    this.prev = new Map();
+    this.pinched = [false, false];
+    this.frame = 0;
+    this.lastFace = null;
+    this.lastTs = 0;
+  }
+
+  getPoints(video, engine, params) {
+    const now = performance.now();
+    const ts = Math.max(now, this.lastTs + 1);
+    this.lastTs = ts;
+    this.frame++;
+
+    const pts = [];
+    const seen = new Set();
+
+    const push = (key, nx, ny, gain) => {
+      const c = engine.mapLandmark(nx, ny, params.mirror);
+      if (c.x < -0.05 || c.x > 1.05) return;
+
+      const prev = this.prev.get(key);
+      let speed = 0;
+      if (prev) speed = Math.hypot(c.x - prev.x, c.y - prev.y);
+      this.prev.set(key, { x: c.x, y: c.y });
+      seen.add(key);
+
+      const s = Math.min(speed * gain, 0.45);
+      if (s < 0.004) return;
+
+      const W = params.water;
+      let gy = c.y > W ? 2 * W - c.y : c.y;
+      if (gy < -0.05) return;
+      gy = Math.min(Math.max(gy, 0.005), W - 0.004);
+      pts.push({ x: c.x, y: gy, s });
+    };
+
+    let handRes = null;
+    try {
+      handRes = this.hands.detectForVideo(video, ts);
+    } catch (e) { /* skip frame */ }
+
+    if (handRes && handRes.landmarks) {
+      handRes.landmarks.forEach((lm, hi) => {
+        HAND_POINTS.forEach((idx) => {
+          const p = lm[idx];
+          push(`h${hi}-${idx}`, p.x, p.y, params.handPower);
+        });
+
+        const t = lm[4], i8 = lm[8];
+        const pinchDist = Math.hypot(t.x - i8.x, t.y - i8.y);
+        const isPinched = pinchDist < 0.05;
+        if (isPinched && !this.pinched[hi]) {
+          const c = engine.mapLandmark((t.x + i8.x) / 2, (t.y + i8.y) / 2, params.mirror);
+          const W = params.water;
+          let gy = c.y > W ? 2 * W - c.y : c.y;
+          gy = Math.min(Math.max(gy, 0.005), W - 0.004);
+          pts.push({ x: c.x, y: gy, s: 0.4 });
+        }
+        this.pinched[hi] = isPinched;
+      });
+    }
+
+    if (params.faceOn) {
+      if (this.frame % 2 === 0) {
+        try {
+          this.lastFace = this.face.detectForVideo(video, ts);
+        } catch (e) { /* keep last */ }
+      }
+      const fl = this.lastFace && this.lastFace.faceLandmarks && this.lastFace.faceLandmarks[0];
+      if (fl) {
+        FACE_POINTS.forEach((idx) => {
+          const p = fl[idx];
+          if (p) push(`f-${idx}`, p.x, p.y, params.facePower);
+        });
+      }
+    }
+
+    for (const key of this.prev.keys()) {
+      if (!seen.has(key)) this.prev.delete(key);
+    }
+
+    return pts;
+  }
+
+  dispose() {
+    try { this.hands.close(); } catch (e) {}
+    try { this.face.close(); } catch (e) {}
+  }
+}
+
+/* ---------------------------------------------------------- */
+/* Styles (scoped, injected once)                             */
+/* ---------------------------------------------------------- */
+
+const CSS = `
+.cgm-wrap { position: relative; width: 100%; height: 100%; min-height: 460px;
+  background: #05060a; overflow: hidden; border-radius: 12px;
+  font-family: 'Helvetica Neue', Arial, sans-serif; }
+.cgm-stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.cgm-overlay { position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 22px; padding: 24px; text-align: center;
+  background: radial-gradient(120% 90% at 50% 0%, #10131c 0%, #05060a 55%); }
+.cgm-title { font-size: clamp(34px, 6vw, 72px); font-weight: 800; letter-spacing: 0.12em;
+  background: linear-gradient(180deg, #f2f5fa 0%, #9aa4b5 38%, #2a3040 52%, #c8d2e2 66%, #565f72 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 14px rgba(150,170,210,0.25)); }
+.cgm-sub { color: #7d8698; font-size: 14px; max-width: 440px; line-height: 1.55; }
+.cgm-start { padding: 13px 32px; font-size: 15px; font-weight: 600; letter-spacing: 0.05em;
+  color: #0a0c12; cursor: pointer; border: none; border-radius: 999px;
+  background: linear-gradient(180deg, #eef2f8, #a9b3c4 55%, #7d8698);
+  box-shadow: 0 6px 24px rgba(160,180,220,0.28), inset 0 1px 0 rgba(255,255,255,0.8); }
+.cgm-start:focus-visible, .cgm-toggle:focus-visible, .cgm-btn:focus-visible {
+  outline: 2px solid #c8d2e2; outline-offset: 2px; }
+.cgm-status { color: #9aa4b5; font-size: 13px; letter-spacing: 0.04em; }
+.cgm-error { color: #e08f8f; font-size: 13px; max-width: 380px; line-height: 1.5; }
+.cgm-note { position: absolute; left: 14px; bottom: 14px; z-index: 3; font-size: 11px;
+  letter-spacing: 0.05em; color: #6b7485; background: rgba(8,10,16,0.55);
+  border: 1px solid rgba(160,175,200,0.18); border-radius: 999px; padding: 6px 12px; }
+.cgm-toggle { position: absolute; top: 12px; right: 12px; z-index: 3; padding: 8px 14px;
+  font-size: 12px; letter-spacing: 0.06em; color: #c8d0dd; background: rgba(10,12,18,0.55);
+  border: 1px solid rgba(160,175,200,0.25); border-radius: 999px; cursor: pointer;
+  backdrop-filter: blur(8px); }
+.cgm-panel { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  width: min(470px, calc(100% - 24px)); z-index: 2; display: flex; flex-direction: column; gap: 7px;
+  padding: 13px 15px; border-radius: 16px; background: rgba(8,10,16,0.62);
+  border: 1px solid rgba(160,175,200,0.18); backdrop-filter: blur(12px); }
+.cgm-row { display: flex; align-items: center; gap: 10px; }
+.cgm-row input[type="range"] { flex: 1; accent-color: #c8d2e2; height: 4px; }
+.cgm-lab { width: 88px; font-size: 12px; color: #9aa4b5; letter-spacing: 0.04em; flex-shrink: 0; }
+.cgm-val { width: 46px; font-size: 11px; color: #6b7485; text-align: right;
+  font-variant-numeric: tabular-nums; }
+.cgm-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 3px; }
+.cgm-btn { padding: 7px 14px; font-size: 12px; color: #c8d0dd; cursor: pointer;
+  background: rgba(30,34,46,0.7); border: 1px solid rgba(160,175,200,0.25); border-radius: 999px; }
+.cgm-rec { color: #ffb4b4; border-color: rgba(255,140,140,0.45); }
+@media (prefers-reduced-motion: reduce) { .cgm-title { filter: none; } }
+`;
+
+function useStyles() {
+  useEffect(() => {
+    if (document.getElementById("cgm-styles")) return;
+    const el = document.createElement("style");
+    el.id = "cgm-styles";
+    el.textContent = CSS;
+    document.head.appendChild(el);
+  }, []);
+}
+
+/* ---------------------------------------------------------- */
+/* Component                                                  */
+/* ---------------------------------------------------------- */
 
 export default function ChromeGooMirror() {
-  const [activeTab, setActiveTab] = useState("record");
-  const [copied, setCopied] = useState(false);
+  useStyles();
+
+  const wrapRef = useRef(null);
   const canvasRef = useRef(null);
+  const videoRef = useRef(null);
+  const engineRef = useRef(null);
+  const rigRef = useRef(null);
+  const streamRef = useRef(null);
+  const rafRef = useRef(0);
+  const pointerRef = useRef(null);
+  const recRef = useRef(null);
 
-  const PROMPTS = {
-    record: {
-      title: "Record Performance",
-      icon: Video,
-      desc: "Capture WebGL canvas renders directly to high-quality video formats.",
-      instructions: `Add recording to App.jsx: a Record button in the panel that captures
-canvasRef via canvas.captureStream(60) into a MediaRecorder
-(video/webm;codecs=vp9, fall back to vp8), shows elapsed time while
-recording, and on stop downloads the file as chrome-goo-<timestamp>.webm.
-Don't touch the render loop; keep the button styled like the existing
-.small-btn class.`
-    },
-    gold: {
-      title: "Gold Goo Variant",
-      icon: Sparkles,
-      desc: "Implement a dark liquid gold shader variant lerped dynamically via uniform inputs.",
-      instructions: `In src/gooEngine.js COMP_FRAG, add a uniform float uGold (0-1) that
-lerps the goo between the current cool black chrome and a dark liquid
-gold: chrome tint toward vec3(0.62, 0.45, 0.18), specular toward
-vec3(1.0, 0.85, 0.55), and warm up the crest-glow color. Wire it to a
-"Gold" slider in App.jsx and pass it through engine.render params.`
-    },
-    gesture: {
-      title: "Open-Palm Shockwave",
-      icon: Move,
-      desc: "Detect dynamic hand gestures to generate radial splat ring shockwaves.",
-      instructions: `In src/tracking.js, detect an open-palm "push": all five fingertips
-extended (tip further from wrist than PIP joints) AND palm z decreasing
-fast (moving toward camera). When triggered, emit a ring of 8 splat
-points around the palm's reflected position with strength 0.3 and
-a 500ms cooldown per hand. Keep the existing pinch splash.`
-    },
-    floaters: {
-      title: "Surface Floating Objects",
-      icon: Layers,
-      desc: "A lightweight 2D floating physics system sampling ripple heights dynamically.",
-      instructions: `Add a floaters system: 6 small chrome spheres (drawn as radial-gradient
-sprites in a 2D overlay canvas positioned above the WebGL canvas) that
-sit on the waterline, bob with the ripple height sampled via
-gl.readPixels of a 1px row once per frame (or estimate from injection
-points), and get pushed sideways by nearby splats. Keep it under 60
-lines and don't slow the main loop.`
-    },
-    deploy: {
-      title: "Production Deploy",
-      icon: Globe,
-      desc: "Netlify hosting pipeline with optimized CORS / COEP policies for MediaPipe CDNs.",
-      instructions: `Add a netlify.toml for this Vite app (build command "npm run build",
-publish "dist") and confirm the MediaPipe CDN URLs work from a
-production HTTPS origin. Note anything needing a CORS or COEP header.`
-    }
-  };
+  const [phase, setPhase] = useState("idle"); // idle | loading | running
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
+  const [tracking, setTracking] = useState(true);
+  const [showPanel, setShowPanel] = useState(true);
+  const [recording, setRecording] = useState(false);
 
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const [params, setParams] = useState({
+    water: 0.5,
+    handPower: 6.0,
+    facePower: 3.5,
+    wake: 1.2,
+    damp: 0.985,
+    distort: 0.06,
+    spec: 1.0,
+    mirror: 1,
+    faceOn: true,
+  });
+  const paramsRef = useRef(params);
+  paramsRef.current = params;
+  const set = (k) => (v) => setParams((p) => ({ ...p, [k]: v }));
 
-  // Interactive liquid chrome simulation
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    let animationFrameId;
-    let width = (canvas.width = canvas.offsetWidth);
-    let height = (canvas.height = canvas.offsetHeight);
-
-    const points = [];
-    const numPoints = 12;
-    for (let i = 0; i < numPoints; i++) {
-      points.push({
-        x: (width / (numPoints - 1)) * i,
-        y: height / 2,
-        targetY: height / 2,
-        vy: 0,
-        r: 30 + Math.random() * 20
+  const start = useCallback(async () => {
+    setError("");
+    setPhase("loading");
+    try {
+      setStatus("Requesting camera");
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
+        audio: false,
       });
+      streamRef.current = stream;
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.playsInline = true;
+      video.muted = true;
+      await video.play();
+      videoRef.current = video;
+
+      try {
+        rigRef.current = await createTrackers(setStatus);
+        setTracking(true);
+      } catch (e) {
+        console.warn("MediaPipe unavailable, falling back to wake + pointer", e);
+        rigRef.current = null;
+        setTracking(false);
+      }
+      setPhase("running");
+    } catch (e) {
+      console.error(e);
+      setError(
+        e.name === "NotAllowedError"
+          ? "Camera access is blocked. Allow the camera for this site, then start again."
+          : e.name === "NotFoundError"
+          ? "No camera found. Connect one and start again."
+          : `Startup failed: ${e.message || e}`
+      );
+      setPhase("idle");
     }
-
-    let mouse = { x: 0, y: 0, active: false };
-
-    const handleMouseMove = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      mouse.x = e.clientX - rect.left;
-      mouse.y = e.clientY - rect.top;
-      mouse.active = true;
-    };
-
-    const handleMouseLeave = () => {
-      mouse.active = false;
-    };
-
-    canvas.addEventListener("mousemove", handleMouseMove);
-    canvas.addEventListener("mouseleave", handleMouseLeave);
-
-    const resize = () => {
-      if (!canvas) return;
-      width = canvas.width = canvas.offsetWidth;
-      height = canvas.height = canvas.offsetHeight;
-    };
-    window.addEventListener("resize", resize);
-
-    const draw = (t) => {
-      ctx.fillStyle = "#0d1b2a";
-      ctx.fillRect(0, 0, width, height);
-
-      // Ripple math
-      points.forEach((p, idx) => {
-        if (mouse.active) {
-          const dx = mouse.x - p.x;
-          const dy = mouse.y - p.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 100) {
-            const force = (100 - dist) * 0.15;
-            p.targetY = height / 2 + (dy > 0 ? force : -force);
-          } else {
-            p.targetY = height / 2 + Math.sin(t * 0.003 + idx) * 20;
-          }
-        } else {
-          p.targetY = height / 2 + Math.sin(t * 0.002 + idx) * 15;
-        }
-
-        p.vy += (p.targetY - p.y) * 0.1;
-        p.vy *= 0.85;
-        p.y += p.vy;
-      });
-
-      // Draw liquid chrome shape
-      ctx.beginPath();
-      ctx.moveTo(0, height);
-      ctx.lineTo(0, points[0].y);
-      for (let i = 0; i < points.length - 1; i++) {
-        const xc = (points[i].x + points[i + 1].x) / 2;
-        const yc = (points[i].y + points[i + 1].y) / 2;
-        ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
-      }
-      ctx.lineTo(width, points[points.length - 1].y);
-      ctx.lineTo(width, height);
-      ctx.closePath();
-
-      // Shiny gradient styling
-      const grad = ctx.createLinearGradient(0, height / 3, 0, height);
-      grad.addColorStop(0, "#00b4d8");
-      grad.addColorStop(0.3, "#0077b6");
-      grad.addColorStop(0.7, "#03045e");
-      grad.addColorStop(1, "#02021c");
-      ctx.fillStyle = grad;
-      ctx.fill();
-
-      // Specular highlights
-      ctx.beginPath();
-      ctx.moveTo(0, points[0].y - 2);
-      for (let i = 0; i < points.length - 1; i++) {
-        const xc = (points[i].x + points[i + 1].x) / 2;
-        const yc = (points[i].y + points[i + 1].y) / 2;
-        ctx.quadraticCurveTo(points[i].x, points[i].y - 2, xc, yc - 2);
-      }
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
-      ctx.lineWidth = 4;
-      ctx.stroke();
-
-      animationFrameId = requestAnimationFrame(draw);
-    };
-
-    draw(0);
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-      window.removeEventListener("resize", resize);
-      if (canvas) {
-        canvas.removeEventListener("mousemove", handleMouseMove);
-        canvas.removeEventListener("mouseleave", handleMouseLeave);
-      }
-    };
   }, []);
 
+  const stop = useCallback(() => {
+    setPhase("idle");
+    setRecording(false);
+    cancelAnimationFrame(rafRef.current);
+    if (recRef.current && recRef.current.state !== "inactive") {
+      try { recRef.current.stop(); } catch (e) {}
+    }
+    recRef.current = null;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (rigRef.current) {
+      rigRef.current.dispose();
+      rigRef.current = null;
+    }
+    videoRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (phase !== "running") return;
+
+    const canvas = canvasRef.current;
+    let engine;
+    try {
+      engine = new GooEngine(canvas);
+    } catch (e) {
+      setError("This browser can't run WebGL, so the goo has nowhere to live.");
+      setPhase("idle");
+      return;
+    }
+    engineRef.current = engine;
+
+    const resize = () => {
+      const rect = wrapRef.current.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      engine.resize(
+        Math.max(2, Math.floor(rect.width * dpr)),
+        Math.max(2, Math.floor(rect.height * dpr))
+      );
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(wrapRef.current);
+
+    const loop = () => {
+      rafRef.current = requestAnimationFrame(loop);
+      const video = videoRef.current;
+      if (!video || video.readyState < 2) return;
+      const p = paramsRef.current;
+
+      const pts = rigRef.current ? rigRef.current.getPoints(video, engine, p) : [];
+
+      // pointer splats — always on, and the whole story when tracking is off
+      const pr = pointerRef.current;
+      if (pr && pr.active && performance.now() - pr.t < 120) {
+        const s = Math.min(pr.speed * 9, 0.4);
+        if (s > 0.004) {
+          const W = p.water;
+          let gy = pr.y > W ? 2 * W - pr.y : pr.y;
+          gy = Math.min(Math.max(gy, 0.005), W - 0.004);
+          pts.push({ x: pr.x, y: gy, s });
+        }
+      }
+
+      engine.render(video, pts, p);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      ro.disconnect();
+      engine.dispose();
+      engineRef.current = null;
+    };
+  }, [phase]);
+
+  useEffect(() => () => stop(), [stop]);
+
+  const onPointer = (e) => {
+    const rect = wrapRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = 1 - (e.clientY - rect.top) / rect.height;
+    const prev = pointerRef.current;
+    const speed = prev ? Math.hypot(x - prev.x, y - prev.y) : 0;
+    pointerRef.current = { x, y, speed, t: performance.now(), active: true };
+  };
+  const onPointerOut = () => {
+    if (pointerRef.current) pointerRef.current.active = false;
+  };
+
+  const toggleRecord = () => {
+    if (recording) {
+      try { recRef.current && recRef.current.stop(); } catch (e) {}
+      return;
+    }
+    try {
+      const stream = canvasRef.current.captureStream(60);
+      const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+        ? "video/webm;codecs=vp9"
+        : "video/webm;codecs=vp8";
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12e6 });
+      const chunks = [];
+      rec.ondataavailable = (ev) => ev.data.size && chunks.push(ev.data);
+      rec.onstop = () => {
+        setRecording(false);
+        const blob = new Blob(chunks, { type: "video/webm" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `chrome-goo-${Date.now()}.webm`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      };
+      rec.start();
+      recRef.current = rec;
+      setRecording(true);
+    } catch (e) {
+      setError("Recording isn't supported in this browser.");
+    }
+  };
+
+  const Slider = ({ label, value, min, max, step, onChange, fmt }) => (
+    <label className="cgm-row">
+      <span className="cgm-lab">{label}</span>
+      <input
+        type="range" min={min} max={max} step={step} value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+      />
+      <span className="cgm-val">{fmt ? fmt(value) : value}</span>
+    </label>
+  );
+
   return (
-    <div className="flex flex-col lg:flex-row w-full min-h-[550px] bg-[#020914] text-white rounded-2xl overflow-hidden font-sans border border-neutral-800 shadow-2xl">
-      {/* Simulation/Interactive Column */}
-      <div className="flex-1 relative flex flex-col justify-between p-8 border-b lg:border-b-0 lg:border-r border-neutral-800">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="bg-cyan-500/20 text-cyan-400 font-mono text-[10px] font-bold px-2 py-0.5 rounded tracking-wider uppercase border border-cyan-500/30">
-              UNRELEASED LAB
-            </span>
-            <span className="text-neutral-500 text-xs font-mono">v3.0.0-alpha</span>
+    <div
+      ref={wrapRef}
+      className="cgm-wrap"
+      onPointerMove={phase === "running" ? onPointer : undefined}
+      onPointerLeave={onPointerOut}
+    >
+      <canvas ref={canvasRef} className="cgm-stage" />
+
+      {phase !== "running" && (
+        <div className="cgm-overlay">
+          <div className="cgm-title">CHROME&nbsp;GOO</div>
+          <div className="cgm-sub">
+            Your webcam feed, half-submerged in liquid black chrome. Fingertips
+            stir the surface, a pinch throws a splash, and every move above the
+            waterline echoes in the reflection below.
           </div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-white mb-2">
-            Chrome Goo Mirror
-          </h2>
-          <p className="text-sm text-neutral-400 leading-relaxed max-w-md">
-            Interactive hand-tracking WebGL fluid simulation. Uses MediaPipe hands tracking to interact with liquid chrome structures.
-          </p>
+          {phase === "idle" ? (
+            <button className="cgm-start" onClick={start}>Turn on camera</button>
+          ) : (
+            <div className="cgm-status">{status}…</div>
+          )}
+          {error && <div className="cgm-error">{error}</div>}
         </div>
+      )}
 
-        {/* Dynamic Wave Simulation */}
-        <div className="my-8 h-48 w-full rounded-xl overflow-hidden border border-neutral-800/80 bg-neutral-950 relative">
-          <canvas ref={canvasRef} className="w-full h-full block" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
-          <div className="absolute bottom-4 left-4 font-mono text-[10px] text-cyan-400/80 bg-black/60 px-2 py-1 rounded border border-neutral-800">
-            WebGL Liquid Engine: Active (2D Mock)
+      {phase === "running" && (
+        <>
+          <div className="cgm-note">
+            {tracking ? "Hands + face tracked" : "Move the pointer to stir — tracking offline"}
           </div>
-        </div>
-
-        <div className="text-xs text-neutral-500 font-mono">
-          Interactive mouse gestures emulate MediaPipe palm tracking splats.
-        </div>
-      </div>
-
-      {/* Prompts/Documentation Column */}
-      <div className="w-full lg:w-[480px] bg-[#040f20] p-8 flex flex-col justify-between">
-        <div>
-          <h3 className="text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider mb-4">
-            IDE Prompts & Tasks
-          </h3>
-          
-          {/* Tabs Grid */}
-          <div className="grid grid-cols-5 gap-2 mb-6">
-            {Object.keys(PROMPTS).map((key) => {
-              const TabIcon = PROMPTS[key].icon;
-              const isActive = activeTab === key;
-              return (
-                <button
-                  key={key}
-                  onClick={() => setActiveTab(key)}
-                  className={`flex flex-col items-center gap-1.5 p-2.5 rounded-lg border transition ${
-                    isActive
-                      ? "bg-cyan-600 border-cyan-500 text-white shadow-lg shadow-cyan-950/40"
-                      : "bg-[#091b35] border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700"
-                  }`}
-                  title={PROMPTS[key].title}
-                >
-                  <TabIcon className="w-4 h-4" />
+          <button className="cgm-toggle" onClick={() => setShowPanel((s) => !s)}>
+            {showPanel ? "Hide controls" : "Controls"}
+          </button>
+          {showPanel && (
+            <div className="cgm-panel">
+              <Slider label="Goo level" value={params.water} min={0.15} max={0.75} step={0.01}
+                onChange={set("water")} fmt={(v) => `${Math.round(v * 100)}%`} />
+              <Slider label="Hand power" value={params.handPower} min={0} max={16} step={0.5}
+                onChange={set("handPower")} fmt={(v) => v.toFixed(1)} />
+              <Slider label="Face power" value={params.facePower} min={0} max={10} step={0.5}
+                onChange={set("facePower")} fmt={(v) => v.toFixed(1)} />
+              <Slider label="Body wake" value={params.wake} min={0} max={4} step={0.1}
+                onChange={set("wake")} fmt={(v) => v.toFixed(1)} />
+              <Slider label="Viscosity" value={params.damp} min={0.9} max={0.997} step={0.001}
+                onChange={set("damp")} fmt={(v) => (1 - v).toFixed(3)} />
+              <Slider label="Warp" value={params.distort} min={0} max={0.15} step={0.005}
+                onChange={set("distort")} fmt={(v) => v.toFixed(2)} />
+              <Slider label="Shine" value={params.spec} min={0} max={2} step={0.05}
+                onChange={set("spec")} fmt={(v) => v.toFixed(2)} />
+              <div className="cgm-foot">
+                <button className="cgm-btn" style={{ opacity: params.faceOn ? 1 : 0.5 }}
+                  onClick={() => set("faceOn")(!params.faceOn)}>Face</button>
+                <button className="cgm-btn" style={{ opacity: params.mirror ? 1 : 0.5 }}
+                  onClick={() => set("mirror")(params.mirror ? 0 : 1)}>Mirror</button>
+                <button className={`cgm-btn${recording ? " cgm-rec" : ""}`} onClick={toggleRecord}>
+                  {recording ? "Stop recording" : "Record"}
                 </button>
-              );
-            })}
-          </div>
-
-          {/* Active Tab Details */}
-          <div className="bg-[#020a17] border border-neutral-800/80 rounded-xl p-5 mb-6">
-            <h4 className="text-lg font-bold text-white mb-1">
-              {PROMPTS[activeTab].title}
-            </h4>
-            <p className="text-xs text-neutral-400 mb-4">
-              {PROMPTS[activeTab].desc}
-            </p>
-
-            {/* Instruction Code Block */}
-            <div className="relative">
-              <pre className="text-xs text-cyan-300/90 font-mono bg-black/50 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap border border-neutral-850 leading-relaxed max-h-64 overflow-y-auto">
-                <code>{PROMPTS[activeTab].instructions}</code>
-              </pre>
-              <button
-                onClick={() => handleCopy(PROMPTS[activeTab].instructions)}
-                className="absolute top-2 right-2 p-1.5 bg-neutral-900/80 text-neutral-400 hover:text-white rounded border border-neutral-800 transition"
-                title="Copy Prompt"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Clipboard className="w-3.5 h-3.5" />}
-              </button>
+                <button className="cgm-btn" onClick={stop}>Stop</button>
+              </div>
             </div>
-          </div>
-        </div>
-
-        <div className="text-[11px] text-neutral-500 font-mono flex items-center justify-between border-t border-neutral-850 pt-4">
-          <span>Target: cursor / claude code</span>
-          <span>5 prompts configured</span>
-        </div>
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
