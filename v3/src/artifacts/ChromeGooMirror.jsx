@@ -505,24 +505,28 @@ const CSS = `
   outline: 2px solid #c8d2e2; outline-offset: 2px; }
 .cgm-status { color: #9aa4b5; font-size: 13px; letter-spacing: 0.04em; }
 .cgm-error { color: #e08f8f; font-size: 13px; max-width: 380px; line-height: 1.5; }
-.cgm-note { position: absolute; left: 14px; bottom: 14px; z-index: 3; font-size: 11px;
+.cgm-note { position: absolute; left: 12px; top: 12px; z-index: 3; font-size: 11px;
   letter-spacing: 0.05em; color: #6b7485; background: rgba(8,10,16,0.55);
   border: 1px solid rgba(160,175,200,0.18); border-radius: 999px; padding: 6px 12px; }
 .cgm-toggle { position: absolute; top: 12px; right: 12px; z-index: 3; padding: 8px 14px;
   font-size: 12px; letter-spacing: 0.06em; color: #c8d0dd; background: rgba(10,12,18,0.55);
   border: 1px solid rgba(160,175,200,0.25); border-radius: 999px; cursor: pointer;
   backdrop-filter: blur(8px); }
-.cgm-panel { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
-  width: min(470px, calc(100% - 24px)); z-index: 2; display: flex; flex-direction: column; gap: 7px;
-  padding: 13px 15px; border-radius: 16px; background: rgba(8,10,16,0.62);
-  border: 1px solid rgba(160,175,200,0.18); backdrop-filter: blur(12px); }
-.cgm-row { display: flex; align-items: center; gap: 10px; }
-.cgm-row input[type="range"] { flex: 1; accent-color: #c8d2e2; height: 4px; }
-.cgm-lab { width: 88px; font-size: 12px; color: #9aa4b5; letter-spacing: 0.04em; flex-shrink: 0; }
-.cgm-val { width: 46px; font-size: 11px; color: #6b7485; text-align: right;
-  font-variant-numeric: tabular-nums; }
-.cgm-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 3px; }
-.cgm-btn { padding: 7px 14px; font-size: 12px; color: #c8d0dd; cursor: pointer;
+.cgm-panel { position: absolute; left: 0; bottom: 0; width: 100%; z-index: 2;
+  display: flex; flex-direction: column; gap: 12px; padding: 12px 16px;
+  background: rgba(8,10,16,0.85); border-top: 1px solid rgba(160,175,200,0.18);
+  border-radius: 0 0 12px 12px; backdrop-filter: blur(12px); box-sizing: border-box; }
+@media (min-width: 768px) {
+  .cgm-panel { flex-direction: row; align-items: center; }
+}
+.cgm-controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px 12px; flex: 1; width: 100%; }
+.cgm-row { display: flex; flex-direction: column; gap: 3px; }
+.cgm-row-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+.cgm-row input[type="range"] { width: 100%; accent-color: #c8d2e2; height: 4px; margin: 0; padding: 0; }
+.cgm-lab { font-size: 11px; color: #9aa4b5; letter-spacing: 0.04em; }
+.cgm-val { font-size: 10px; color: #6b7485; text-align: right; font-variant-numeric: tabular-nums; }
+.cgm-foot { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-shrink: 0; }
+.cgm-btn { padding: 6px 12px; font-size: 11px; color: #c8d0dd; cursor: pointer;
   background: rgba(30,34,46,0.7); border: 1px solid rgba(160,175,200,0.25); border-radius: 999px; }
 .cgm-rec { color: #ffb4b4; border-color: rgba(255,140,140,0.45); }
 @media (prefers-reduced-motion: reduce) { .cgm-title { filter: none; } }
@@ -805,12 +809,14 @@ export default function ChromeGooMirror() {
 
   const Slider = ({ label, value, min, max, step, onChange, fmt }) => (
     <label className="cgm-row">
-      <span className="cgm-lab">{label}</span>
+      <div className="cgm-row-header">
+        <span className="cgm-lab">{label}</span>
+        <span className="cgm-val">{fmt ? fmt(value) : value}</span>
+      </div>
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
       />
-      <span className="cgm-val">{fmt ? fmt(value) : value}</span>
     </label>
   );
 
@@ -870,20 +876,22 @@ export default function ChromeGooMirror() {
           </button>
           {showPanel && (
             <div className="cgm-panel">
-              <Slider label="Goo level" value={params.water} min={0.15} max={0.75} step={0.01}
-                onChange={set("water")} fmt={(v) => `${Math.round(v * 100)}%`} />
-              <Slider label="Hand power" value={params.handPower} min={0} max={16} step={0.5}
-                onChange={set("handPower")} fmt={(v) => v.toFixed(1)} />
-              <Slider label="Face power" value={params.facePower} min={0} max={10} step={0.5}
-                onChange={set("facePower")} fmt={(v) => v.toFixed(1)} />
-              <Slider label="Body wake" value={params.wake} min={0} max={4} step={0.1}
-                onChange={set("wake")} fmt={(v) => v.toFixed(1)} />
-              <Slider label="Viscosity" value={params.damp} min={0.9} max={0.997} step={0.001}
-                onChange={set("damp")} fmt={(v) => (1 - v).toFixed(3)} />
-              <Slider label="Warp" value={params.distort} min={0} max={0.15} step={0.005}
-                onChange={set("distort")} fmt={(v) => v.toFixed(2)} />
-              <Slider label="Shine" value={params.spec} min={0} max={2} step={0.05}
-                onChange={set("spec")} fmt={(v) => v.toFixed(2)} />
+              <div className="cgm-controls-grid">
+                <Slider label="Goo level" value={params.water} min={0.15} max={0.75} step={0.01}
+                  onChange={set("water")} fmt={(v) => `${Math.round(v * 100)}%`} />
+                <Slider label="Hand power" value={params.handPower} min={0} max={16} step={0.5}
+                  onChange={set("handPower")} fmt={(v) => v.toFixed(1)} />
+                <Slider label="Face power" value={params.facePower} min={0} max={10} step={0.5}
+                  onChange={set("facePower")} fmt={(v) => v.toFixed(1)} />
+                <Slider label="Body wake" value={params.wake} min={0} max={4} step={0.1}
+                  onChange={set("wake")} fmt={(v) => v.toFixed(1)} />
+                <Slider label="Viscosity" value={params.damp} min={0.9} max={0.997} step={0.001}
+                  onChange={set("damp")} fmt={(v) => (1 - v).toFixed(3)} />
+                <Slider label="Warp" value={params.distort} min={0} max={0.15} step={0.005}
+                  onChange={set("distort")} fmt={(v) => v.toFixed(2)} />
+                <Slider label="Shine" value={params.spec} min={0} max={2} step={0.05}
+                  onChange={set("spec")} fmt={(v) => v.toFixed(2)} />
+              </div>
               <div className="cgm-foot">
                 <button className="cgm-btn" style={{ opacity: params.faceOn ? 1 : 0.5 }}
                   onClick={() => set("faceOn")(!params.faceOn)}>Face</button>
