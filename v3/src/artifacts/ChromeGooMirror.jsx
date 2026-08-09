@@ -17,7 +17,7 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 /* WebGL engine                                               */
 /* ---------------------------------------------------------- */
 
-const MAX_POINTS = 24;
+const MAX_POINTS = 64;
 
 const VERT = `
 attribute vec2 aPos;
@@ -373,8 +373,8 @@ const HAND_MODEL =
 const FACE_MODEL =
   "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
-const HAND_POINTS = [0, 4, 8, 12, 16, 20];
-const FACE_POINTS = [0, 4, 10, 18, 33, 61, 152, 234, 263, 291, 374, 454];
+const HAND_POINTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+const FACE_POINTS = [0, 4, 6, 10, 13, 14, 18, 33, 70, 107, 145, 152, 159, 168, 234, 263, 291, 300, 336, 374, 386, 454];
 
 async function createTrackers(onStatus = () => {}) {
   onStatus("Loading vision runtime");
@@ -643,9 +643,9 @@ export default function ChromeGooMirror() {
 
   const [params, setParams] = useState({
     water: 0.5,
-    handPower: 6.0,
-    facePower: 3.5,
-    wake: 1.2,
+    handPower: 8.5,
+    facePower: 6.0,
+    wake: 1.5,
     damp: 0.985,
     distort: 0.06,
     spec: 1.0,
