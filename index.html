@@ -66,6 +66,8 @@
             align-items: flex-start;
             margin-bottom: clamp(24px, 4vw, 48px);
             gap: 24px;
+            position: relative;
+            z-index: 20;
         }
 
         .hero-badge {
@@ -88,6 +90,8 @@
 
         .hero {
             margin-bottom: clamp(32px, 6vw, 64px);
+            position: relative;
+            z-index: 10;
         }
 
         .hero h1 {
@@ -209,6 +213,41 @@
         .feature-box {
             width: 100%;
             background: var(--muted);
+        }
+
+        .feature-box video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Parallax Background Video - Full viewport background behind the entire page content */
+        body.parallax-enabled {
+            background: transparent;
+        }
+
+        body.parallax-enabled .demo-bg-video-wrapper {
+            display: block !important;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+            overflow: hidden;
+            background: #ffffff;
+        }
+
+        body.parallax-enabled .demo-bg-video-wrapper video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.12;
+            filter: grayscale(1);
         }
 
         .divider {
@@ -333,6 +372,105 @@
             .nav-container a {
                 font-size: 0.72rem;
             }
+
+            .layout-toggle-wrapper {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.72rem;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                margin-left: auto;
+                border-left: 1px solid #000000;
+                padding-left: 16px;
+            }
+            
+            .switch {
+                position: relative;
+                display: inline-block;
+                width: 36px;
+                height: 20px;
+            }
+            
+            .switch input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+            
+            .slider {
+                position: absolute;
+                cursor: pointer;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: #e5e5e5;
+                transition: .4s cubic-bezier(0.16, 1, 0.3, 1);
+                border-radius: 20px;
+                border: 1px solid #000000;
+            }
+            
+            .slider:before {
+                position: absolute;
+                content: "";
+                height: 12px;
+                width: 12px;
+                left: 3px;
+                bottom: 3px;
+                background-color: #000000;
+                transition: .4s cubic-bezier(0.16, 1, 0.3, 1);
+                border-radius: 50%;
+            }
+            
+            input:checked + .slider {
+                background-color: #000000;
+            }
+            
+            input:checked + .slider:before {
+                background-color: #ffffff;
+                transform: translateX(16px);
+            }
+
+            /* Parallax Badge Styles */
+            .hero-top {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: clamp(24px, 4vw, 48px);
+                gap: 24px;
+                overflow: hidden;
+            }
+
+            .hero-badge {
+                width: clamp(110px, 16vw, 165px);
+                aspect-ratio: 1 / 1;
+                border-radius: 50%;
+                overflow: hidden;
+                flex-shrink: 0;
+                will-change: transform;
+            }
+
+            .hero-badge.left {
+                width: clamp(180px, 24vw, 330px);
+            }
+
+            .hero-badge img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            
+            @media (max-width: 900px) {
+                .layout-toggle-wrapper {
+                    margin-left: 0;
+                    border-left: none;
+                    padding-left: 0;
+                    width: 100%;
+                    margin-top: 4px;
+                }
+            }
         }
     </style>
 </head>
@@ -350,6 +488,14 @@
             <a href="animation.html">ANIMATION</a>
             <a href="https://monsterrig.blogspot.com/" target="_blank" rel="noopener noreferrer">ZBRUSH MODELS</a>
             <a href="https://jmicallefprofport.com/" target="_blank" rel="noopener noreferrer">EDUCATOR PORTFOLIO</a>
+            
+            <div class="layout-toggle-wrapper">
+                <span>Parallax Mode</span>
+                <label class="switch">
+                    <input type="checkbox" id="layout-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
         </div>
     </nav>
     <div class="whitepaper-fixed-badge">
@@ -361,8 +507,20 @@
             <span>📄</span> Ryman pLAtform Case Study (PDF)
         </a>
     </div>
+    <div class="demo-bg-video-wrapper" style="display: none;">
+        <video src="Video/JoeMicallefDemoReel.mp4" muted playsinline></video>
+    </div>
     <div class="page">
         <main class="container">
+            <section class="hero-top" id="hero-badges" style="display: none;">
+                <div class="hero-badge left">
+                    <img src="images/joe_logo.png" alt="Left circular graphic">
+                </div>
+                <div class="hero-badge right">
+                    <img src="images/COGSPA.png" alt="Right circular graphic">
+                </div>
+            </section>
+            
             <section class="hero">
                 <h1>
                     <span class="hero-name">JOE MICALLEF</span>
@@ -489,8 +647,7 @@
                     </div>
                 </div>
                 <div class="feature-box">
-                    <video src="Video/JoeMicallefDemoReel.mp4" autoplay loop muted playsinline controls
-                        style="width: 100%; height: auto; display: block;"></video>
+                    <video src="Video/JoeMicallefDemoReel.mp4" autoplay loop muted playsinline controls></video>
                 </div>
             </section>
 
@@ -563,6 +720,87 @@
                     track.appendChild(clone);
                 });
             }
+
+            // Layout Toggling & Parallax Logic
+            const toggle = document.getElementById("layout-toggle");
+            const contextSection = document.getElementById("context-engineering");
+            const heroBadges = document.getElementById("hero-badges");
+            const container = document.querySelector("main.container");
+            const footer = document.querySelector("footer.footer");
+            const heroSection = document.querySelector("section.hero");
+
+            const demoVideo = document.querySelector("#demo-reel .feature-box video");
+            const demoVideoWrapper = document.querySelector("#demo-reel .feature-box");
+            const demoReelSection = document.getElementById("demo-reel");
+            const bgVideo = document.querySelector(".demo-bg-video-wrapper video");
+
+            if (bgVideo) {
+                // Preload and initialize to 2.0s to avoid title card
+                bgVideo.preload = "auto";
+                bgVideo.muted = true;
+                bgVideo.currentTime = 2.0;
+            }
+
+            // Create a comment placeholder where contextSection is originally located
+            const placeholder = document.createComment("context-engineering-placeholder");
+            contextSection.parentNode.insertBefore(placeholder, contextSection);
+
+            function updateLayout(isParallax) {
+                if (isParallax) {
+                    document.body.classList.add("parallax-enabled");
+                    heroBadges.style.display = "flex";
+                    // Move context-engineering to bottom (just before the footer)
+                    container.insertBefore(contextSection, footer);
+
+                    if (bgVideo) {
+                        bgVideo.currentTime = 2.0;
+                    }
+                } else {
+                    document.body.classList.remove("parallax-enabled");
+                    heroBadges.style.display = "none";
+                    // Reset transform styles
+                    const leftBadge = document.querySelector(".hero-badge.left");
+                    const rightBadge = document.querySelector(".hero-badge.right");
+                    if (leftBadge) leftBadge.style.transform = "none";
+                    if (rightBadge) rightBadge.style.transform = "none";
+
+                    // Move context-engineering back to its original position
+                    placeholder.parentNode.insertBefore(contextSection, placeholder.nextSibling);
+                }
+            }
+
+            // Load saved preference
+            const savedPref = localStorage.getItem("layout-parallax") === "true";
+            toggle.checked = savedPref;
+            updateLayout(savedPref);
+
+            toggle.addEventListener("change", (e) => {
+                const active = e.target.checked;
+                localStorage.setItem("layout-parallax", active ? "true" : "false");
+                updateLayout(active);
+            });
+
+            // Parallax scroll handler
+            window.addEventListener("scroll", () => {
+                if (!document.body.classList.contains("parallax-enabled")) return;
+                const scrolled = window.scrollY;
+                const leftBadge = document.querySelector(".hero-badge.left");
+                const rightBadge = document.querySelector(".hero-badge.right");
+
+                if (leftBadge) {
+                    leftBadge.style.transform = `translateY(${scrolled * 0.18}px)`;
+                }
+                if (rightBadge) {
+                    rightBadge.style.transform = `translateY(${scrolled * 0.08}px) rotate(${scrolled * 0.03}deg)`;
+                }
+
+                // Scroll Scrub Background Video (plays/advances frame-by-frame on scroll, starting at 2.0s)
+                if (bgVideo && bgVideo.duration) {
+                    const maxScroll = Math.max(100, document.documentElement.scrollHeight - window.innerHeight);
+                    const progress = Math.min(1, Math.max(0, scrolled / maxScroll));
+                    bgVideo.currentTime = 2.0 + progress * (bgVideo.duration - 2.0);
+                }
+            });
         });
     </script>
 </body>
