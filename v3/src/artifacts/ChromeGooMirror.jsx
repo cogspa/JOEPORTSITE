@@ -232,12 +232,14 @@ class GooEngine {
       mirror: U(this.compProg, "uMirror"), distort: U(this.compProg, "uDistort"),
       spec: U(this.compProg, "uSpec"), time: U(this.compProg, "uTime"), fit: U(this.compProg, "uFit"),
       reflect: U(this.compProg, "uReflect"), transparency: U(this.compProg, "uTransparency"),
+      depthMap: U(this.compProg, "uDepthMap"), depthSlice: U(this.compProg, "uDepthSlice"),
     };
 
     this.rippleTex = [null, null];
     this.rippleFbo = [null, null];
     this.rippleIdx = 0;
     this.vidTex = [makeTex(gl, 2, 2), makeTex(gl, 2, 2)];
+    this.depthTex = makeTex(gl, 2, 2);
     this.vidIdx = 0;
     this.simW = 0;
     this.simH = 0;
@@ -278,7 +280,7 @@ class GooEngine {
     return { x: cx, y: cy };
   }
 
-  render(video, pts, params) {
+  render(video, depthCanvas, pts, params) {
     const { gl, canvas } = this;
     if (!this.simW) return;
 
@@ -288,6 +290,8 @@ class GooEngine {
     gl.bindTexture(gl.TEXTURE_2D, this.vidTex[curVid]);
     try {
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+      gl.bindTexture(gl.TEXTURE_2D, this.depthTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, depthCanvas);
     } catch (e) {
       return;
     }
@@ -301,10 +305,16 @@ class GooEngine {
     this.lastFit = fit;
 
     const n = Math.min(pts.length, MAX_POINTS);
-    for (let i = 0; i < n; i++) {
-      this.ptsFlat[i * 3] = pts[i].x;
-      this.ptsFlat[i * 3 + 1] = pts[i].y;
-      this.ptsFlat[i * 3 + 2] = pts[i].s;
+    for (let i = 0; i < MAX_POINTS; i++) {
+      if (i < n) {
+        this.ptsFlat[i * 3] = pts[i].x;
+        this.ptsFlat[i * 3 + 1] = pts[i].y;
+        this.ptsFlat[i * 3 + 2] = pts[i].s;
+      } else {
+        this.ptsFlat[i * 3] = -1;
+        this.ptsFlat[i * 3 + 1] = -1;
+        this.ptsFlat[i * 3 + 2] = 0;
+      }
     }
 
     gl.useProgram(this.simProg);
@@ -338,8 +348,10 @@ class GooEngine {
     gl.useProgram(this.compProg);
     gl.uniform1i(this.compU.ripple, 0);
     gl.uniform1i(this.compU.video, 1);
+    gl.uniform1i(this.compU.depthMap, 3);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.rippleTex[this.rippleIdx]);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.vidTex[curVid]);
+    gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, this.depthTex);
     gl.uniform2f(this.compU.simTexel, 1 / this.simW, 1 / this.simH);
     gl.uniform1f(this.compU.water, params.water);
     gl.uniform1f(this.compU.mirror, params.mirror);
@@ -349,6 +361,7 @@ class GooEngine {
     gl.uniform2f(this.compU.fit, fit[0], fit[1]);
     gl.uniform1f(this.compU.reflect, params.reflect);
     gl.uniform1f(this.compU.transparency, params.transparency);
+    gl.uniform1f(this.compU.depthSlice, params.depthSlice);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     this.vidIdx = prevVid;
@@ -359,6 +372,7 @@ class GooEngine {
     this.rippleTex.forEach((t) => t && gl.deleteTexture(t));
     this.rippleFbo.forEach((f) => f && gl.deleteFramebuffer(f));
     this.vidTex.forEach((t) => gl.deleteTexture(t));
+    if (this.depthTex) gl.deleteTexture(this.depthTex);
   }
 }
 
@@ -415,6 +429,49 @@ class TrackerRig {
     this.frame = 0;
     this.lastFace = null;
     this.lastTs = 0;
+    this.depthCanvas = document.createElement("canvas");
+    this.depthCanvas.width = 320;
+    this.depthCanvas.height = 240;
+  }
+
+  updateDepthMap(handRes, faceRes) {
+    const canvas = this.depthCanvas;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const drawCircle = (nx, ny, nz, radius) => {
+      const cx = nx * canvas.width;
+      const cy = ny * canvas.height;
+      // Map MediaPipe z coordinate to 0-255 grayscale
+      // MediaPipe z is usually in range [-0.15, 0.15], closer is more negative.
+      // So let's map (-0.18 to 0.12) to (255 to 0).
+      const zNorm = Math.min(Math.max((0.12 - nz) / 0.30, 0.0), 1.0);
+      const val = Math.round(zNorm * 255);
+      
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+      grad.addColorStop(0, `rgba(${val}, ${val}, ${val}, 1.0)`);
+      grad.addColorStop(1, `rgba(${val}, ${val}, ${val}, 0.0)`);
+      
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+    };
+
+    if (handRes && handRes.landmarks) {
+      handRes.landmarks.forEach((lm) => {
+        lm.forEach((pt) => {
+          drawCircle(pt.x, pt.y, pt.z, 28);
+        });
+      });
+    }
+
+    if (faceRes && faceRes.faceLandmarks && faceRes.faceLandmarks[0]) {
+      faceRes.faceLandmarks[0].forEach((pt) => {
+        drawCircle(pt.x, pt.y, pt.z, 20);
+      });
+    }
   }
 
   getPoints(video, engine, params) {
@@ -455,20 +512,22 @@ class TrackerRig {
       handRes.landmarks.forEach((lm, hi) => {
         HAND_POINTS.forEach((idx) => {
           const p = lm[idx];
-          push(`h${hi}-${idx}`, p.x, p.y, params.handPower);
+          if (p) push(`h${hi}-${idx}`, p.x, p.y, params.handPower);
         });
 
         const t = lm[4], i8 = lm[8];
-        const pinchDist = Math.hypot(t.x - i8.x, t.y - i8.y);
-        const isPinched = pinchDist < 0.05;
-        if (isPinched && !this.pinched[hi]) {
-          const c = engine.mapLandmark((t.x + i8.x) / 2, (t.y + i8.y) / 2, params.mirror);
-          const W = params.water;
-          let gy = c.y > W ? 2 * W - c.y : c.y;
-          gy = Math.min(Math.max(gy, 0.005), W - 0.004);
-          pts.push({ x: c.x, y: gy, s: 0.4 });
+        if (t && i8) {
+          const pinchDist = Math.hypot(t.x - i8.x, t.y - i8.y);
+          const isPinched = pinchDist < 0.05;
+          if (isPinched && !this.pinched[hi]) {
+            const c = engine.mapLandmark((t.x + i8.x) / 2, (t.y + i8.y) / 2, params.mirror);
+            const W = params.water;
+            let gy = c.y > W ? 2 * W - c.y : c.y;
+            gy = Math.min(Math.max(gy, 0.005), W - 0.004);
+            pts.push({ x: c.x, y: gy, s: 0.4 });
+          }
+          this.pinched[hi] = isPinched;
         }
-        this.pinched[hi] = isPinched;
       });
     }
 
@@ -490,6 +549,8 @@ class TrackerRig {
     for (const key of this.prev.keys()) {
       if (!seen.has(key)) this.prev.delete(key);
     }
+
+    this.updateDepthMap(handRes, this.lastFace);
 
     return pts;
   }
@@ -590,6 +651,7 @@ export default function ChromeGooMirror() {
   const isFallbackRef = useRef(false);
   isFallbackRef.current = isFallback;
   const fallbackCanvasRef = useRef(null);
+  const fallbackDepthCanvasRef = useRef(null);
 
   const getFallbackCanvas = () => {
     if (!fallbackCanvasRef.current) {
@@ -653,6 +715,7 @@ export default function ChromeGooMirror() {
     faceOn: true,
     reflect: 0.6,
     transparency: 0.65,
+    depthSlice: 0.15,
   });
   const paramsRef = useRef(params);
   paramsRef.current = params;
@@ -773,7 +836,35 @@ export default function ChromeGooMirror() {
         }
       }
 
-      engine.render(video, pts, p);
+      let depthCanvas;
+      if (rigRef.current) {
+        depthCanvas = rigRef.current.depthCanvas;
+      } else {
+        if (!fallbackDepthCanvasRef.current) {
+          fallbackDepthCanvasRef.current = document.createElement("canvas");
+          fallbackDepthCanvasRef.current.width = 320;
+          fallbackDepthCanvasRef.current.height = 240;
+        }
+        const fdc = fallbackDepthCanvasRef.current;
+        const fctx = fdc.getContext("2d");
+        fctx.fillStyle = "black";
+        fctx.fillRect(0, 0, fdc.width, fdc.height);
+
+        if (pr && pr.active && performance.now() - pr.t < 120) {
+          const cx = pr.x * fdc.width;
+          const cy = (1 - pr.y) * fdc.height;
+          const grad = fctx.createRadialGradient(cx, cy, 0, cx, cy, 35);
+          grad.addColorStop(0, "rgba(255, 255, 255, 1.0)");
+          grad.addColorStop(1, "rgba(255, 255, 255, 0.0)");
+          fctx.fillStyle = grad;
+          fctx.beginPath();
+          fctx.arc(cx, cy, 35, 0, Math.PI * 2);
+          fctx.fill();
+        }
+        depthCanvas = fdc;
+      }
+
+      engine.render(video, depthCanvas, pts, p);
     };
     rafRef.current = requestAnimationFrame(loop);
 
@@ -917,6 +1008,8 @@ export default function ChromeGooMirror() {
                   onChange={set("reflect")} fmt={(v) => `${Math.round(v * 100)}%`} />
                 <Slider label="Transparency" value={params.transparency} min={0.0} max={1.0} step={0.05}
                   onChange={set("transparency")} fmt={(v) => `${Math.round((1 - v) * 100)}%`} />
+                <Slider label="Depth Slice" value={params.depthSlice} min={0.0} max={1.0} step={0.02}
+                  onChange={set("depthSlice")} fmt={(v) => `${Math.round(v * 100)}%`} />
               </div>
               <div className="cgm-foot">
                 <button className="cgm-btn" style={{ opacity: params.faceOn ? 1 : 0.5 }}
