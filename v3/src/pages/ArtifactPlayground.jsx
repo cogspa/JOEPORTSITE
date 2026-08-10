@@ -676,7 +676,7 @@ export default function ArtifactPlayground() {
       return;
     }
 
-    fetch("/", {
+    fetch("/__forms.html", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: encodeFormData({ "form-name": "custom-tool-requests", ...formData })
