@@ -580,57 +580,63 @@ class ErrorBoundary extends React.Component {
 
 const CATEGORY_COLORS = {
   react: {
-    bg: "bg-emerald-500",
-    text: "text-emerald-700",
-    border: "border-emerald-500",
-    hoverBg: "hover:bg-emerald-600",
-    lightBg: "bg-emerald-50",
-    lightBorder: "border-emerald-200",
-    ledgerColor: "#10B981"
+    bg: "bg-[#56A1B2]",
+    text: "text-[#1D6372]",
+    border: "border-[#56A1B2]",
+    hoverBg: "hover:bg-[#468E9E]",
+    cardBg: "bg-[#F0F8FA]",
+    lightBg: "bg-[#E1F3F6]",
+    lightBorder: "border-[#BEE4EC]",
+    ledgerColor: "#56A1B2"
   },
   blender: {
-    bg: "bg-[#1846C7]",
-    text: "text-[#1846C7]",
-    border: "border-[#1846C7]",
-    hoverBg: "hover:bg-blue-800",
-    lightBg: "bg-blue-50",
-    lightBorder: "border-blue-200",
-    ledgerColor: "#1846C7"
+    bg: "bg-[#FF5500]",
+    text: "text-[#C93800]",
+    border: "border-[#FF5500]",
+    hoverBg: "hover:bg-[#E04B00]",
+    cardBg: "bg-[#FFF7F4]",
+    lightBg: "bg-[#FFEBE3]",
+    lightBorder: "border-[#FFCCB8]",
+    ledgerColor: "#FF5500"
   },
   photoshop: {
-    bg: "bg-[#CE2018]",
-    text: "text-[#CE2018]",
-    border: "border-[#CE2018]",
-    hoverBg: "hover:bg-red-800",
-    lightBg: "bg-red-50",
-    lightBorder: "border-red-200",
-    ledgerColor: "#CE2018"
+    bg: "bg-[#D87093]",
+    text: "text-[#9E355D]",
+    border: "border-[#D87093]",
+    hoverBg: "hover:bg-[#C2587E]",
+    cardBg: "bg-[#FDF4F8]",
+    lightBg: "bg-[#FCE4EF]",
+    lightBorder: "border-[#F6C2DA]",
+    ledgerColor: "#D87093"
   },
   figma: {
-    bg: "bg-[#F2C400]",
-    text: "text-[#B59200]",
-    border: "border-[#F2C400]",
-    hoverBg: "hover:bg-yellow-600",
-    lightBg: "bg-yellow-50",
-    lightBorder: "border-yellow-250",
-    ledgerColor: "#F2C400"
+    bg: "bg-[#F5CE38]",
+    text: "text-[#8A6A00]",
+    border: "border-[#F5CE38]",
+    hoverBg: "hover:bg-[#E0B820]",
+    cardBg: "bg-[#FEFCF0]",
+    lightBg: "bg-[#FEF7D1]",
+    lightBorder: "border-[#FDEAA2]",
+    ledgerColor: "#F5CE38"
   },
   web: {
     bg: "bg-[#EDE8DD]",
-    text: "text-[#7A715C]",
-    border: "border-[#EDE8DD]",
-    hoverBg: "hover:bg-stone-200",
-    lightBg: "bg-[#EDE8DD]/20",
-    lightBorder: "border-stone-300",
+    text: "text-[#68604F]",
+    border: "border-[#D5CDC0]",
+    hoverBg: "hover:bg-[#DFD9CD]",
+    cardBg: "bg-[#FAF8F5]",
+    lightBg: "bg-[#F0EBE2]",
+    lightBorder: "border-[#DDD5C7]",
     ledgerColor: "#EDE8DD"
   },
   python: {
     bg: "bg-[#8B8474]",
-    text: "text-[#8B8474]",
+    text: "text-[#524E43]",
     border: "border-[#8B8474]",
-    hoverBg: "hover:bg-stone-600",
-    lightBg: "bg-stone-100",
-    lightBorder: "border-stone-300",
+    hoverBg: "hover:bg-[#787162]",
+    cardBg: "bg-[#F7F6F3]",
+    lightBg: "bg-[#EAE7E1]",
+    lightBorder: "border-[#D3CEC5]",
     ledgerColor: "#8B8474"
   }
 };
@@ -793,8 +799,13 @@ export default function ArtifactPlayground() {
               <span className="text-neutral-400">•</span>
               <span>pLAtform Shipped React Artifacts</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold uppercase tracking-tight mt-1">
-              Artifact Playground
+            <h1 className="text-2xl md:text-3xl font-extrabold uppercase tracking-tight mt-1 flex items-center gap-2.5">
+              <img
+                src="/COGSPA.png"
+                alt="COGSPA Logo"
+                className="h-7 md:h-8 w-auto object-contain"
+              />
+              <span>Artifact Playground</span>
             </h1>
           </div>
 
@@ -899,8 +910,8 @@ export default function ArtifactPlayground() {
           <section className="mb-16">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
               <div>
-                <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-emerald-700 mb-1">
-                  <span>🟢 SHIPPED REACT (JSX/JS) ARTIFACTS</span>
+                <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-[#1D6372] mb-1">
+                  <span>🔷 SHIPPED REACT (JSX/JS) ARTIFACTS</span>
                 </div>
                 <h2 className="text-2xl font-extrabold uppercase tracking-tight">
                   React (JSX/JS) Tools
@@ -909,7 +920,7 @@ export default function ArtifactPlayground() {
                   Interactive production components, custom canvas shaders, and animation suites built natively in React.
                 </p>
               </div>
-              <span className="font-mono text-xs font-semibold text-emerald-950 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg self-start md:self-auto">
+              <span className="font-mono text-xs font-semibold text-[#1D6372] bg-[#E1F3F6] border border-[#BEE4EC] px-3 py-1.5 rounded-lg self-start md:self-auto">
                 {ARTIFACT_ITEMS.length} Shipped Tool{ARTIFACT_ITEMS.length > 1 ? "s" : ""}
               </span>
             </div>
@@ -944,10 +955,10 @@ export default function ArtifactPlayground() {
               {filteredArtifacts.map((art) => (
                 <div
                   key={art.id}
-                  className="border border-neutral-300 border-t-4 border-emerald-500 rounded-xl p-6 flex flex-col justify-between hover:border-black hover:shadow-xl transition-all bg-white relative overflow-hidden"
+                  className="border border-neutral-300 border-t-4 border-[#56A1B2] rounded-xl p-6 flex flex-col justify-between hover:border-black hover:shadow-xl transition-all bg-[#F0F8FA] relative overflow-hidden"
                 >
                   <div>
-                    <div className="text-[10px] font-mono uppercase font-bold tracking-wider px-2 py-0.5 rounded border text-emerald-700 bg-emerald-50 border-emerald-250 inline-block mb-3">
+                    <div className="text-[10px] font-mono uppercase font-bold tracking-wider px-2 py-0.5 rounded border text-[#1D6372] bg-[#E1F3F6] border-[#BEE4EC] inline-block mb-3">
                       React · {art.categoryLabel}
                     </div>
                     <h3 className="text-xl font-bold mb-1">{art.title}</h3>
@@ -984,7 +995,7 @@ export default function ArtifactPlayground() {
           <section className="mb-16 pt-12 border-t-2 border-dashed border-neutral-300">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
               <div>
-                <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-emerald-800 mb-1">
+                <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-[#1D6372] mb-1">
                   <span>🧪 LAB EXPERIMENTS &amp; PROTOTYPES</span>
                 </div>
                 <h2 className="text-2xl font-extrabold uppercase tracking-tight">
@@ -994,7 +1005,7 @@ export default function ArtifactPlayground() {
                   Experimental creative coding tools, interactive canvas shaders, and unreleased R&amp;D prototypes exploring generative media in React.
                 </p>
               </div>
-              <span className="font-mono text-xs font-semibold text-emerald-950 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg self-start md:self-auto">
+              <span className="font-mono text-xs font-semibold text-[#1D6372] bg-[#E1F3F6] border border-[#BEE4EC] px-3 py-1.5 rounded-lg self-start md:self-auto">
                 {UNSHIPPED_ITEMS.length} Unreleased Tool{UNSHIPPED_ITEMS.length > 1 ? "s" : ""}
               </span>
             </div>
@@ -1003,13 +1014,13 @@ export default function ArtifactPlayground() {
               {UNSHIPPED_ITEMS.map((art) => (
                 <div
                   key={art.id}
-                  className="border-2 border-dashed border-neutral-300 border-t-4 border-emerald-500 rounded-xl p-6 flex flex-col justify-between hover:border-black hover:shadow-xl transition-all bg-neutral-50/70 relative overflow-hidden"
+                  className="border-2 border-dashed border-neutral-300 border-t-4 border-[#56A1B2] rounded-xl p-6 flex flex-col justify-between hover:border-black hover:shadow-xl transition-all bg-[#F0F8FA]/70 relative overflow-hidden"
                 >
-                  <div className="absolute top-4 right-4 bg-emerald-100 text-emerald-900 border border-emerald-300 font-mono text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                  <div className="absolute top-4 right-4 bg-[#E1F3F6] text-[#1D6372] border border-[#BEE4EC] font-mono text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
                     {art.badge || "EXPERIMENTAL"}
                   </div>
                   <div>
-                    <div className="text-[10px] font-mono uppercase font-bold tracking-wider px-2 py-0.5 rounded border text-emerald-850 bg-emerald-50 border-emerald-250 inline-block mb-3">
+                    <div className="text-[10px] font-mono uppercase font-bold tracking-wider px-2 py-0.5 rounded border text-[#1D6372] bg-[#E1F3F6] border-[#BEE4EC] inline-block mb-3">
                       React · Experimental
                     </div>
                     <h3 className="text-xl font-bold mb-1 pr-16">{art.title}</h3>
@@ -1052,9 +1063,9 @@ export default function ArtifactPlayground() {
               if (displayTools.length === 0) return null;
 
               const activeCatObj = CATEGORY_COLORS[activeLedgerFilter] || {
-                text: "text-blue-700",
-                lightBg: "bg-blue-50",
-                lightBorder: "border-blue-200"
+                text: "text-[#1D6372]",
+                lightBg: "bg-[#E1F3F6]",
+                lightBorder: "border-[#BEE4EC]"
               };
 
               return (
@@ -1082,7 +1093,7 @@ export default function ArtifactPlayground() {
                       return (
                         <div
                           key={idx}
-                          className={`border border-neutral-300 border-t-4 ${colorObj.border} rounded-xl p-6 flex flex-col justify-between hover:border-black hover:shadow-xl transition-all bg-white relative overflow-hidden`}
+                          className={`border border-neutral-300 border-t-4 ${colorObj.border} rounded-xl p-6 flex flex-col justify-between hover:border-black hover:shadow-xl transition-all ${colorObj.cardBg} relative overflow-hidden`}
                         >
                           <div>
                             <div className={`text-[10px] font-mono uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${colorObj.text} ${colorObj.lightBg} ${colorObj.lightBorder} inline-block mb-3`}>
@@ -1164,10 +1175,16 @@ export default function ArtifactPlayground() {
             </div>
 
             {formStatus === "success" ? (
-              <div className="bg-emerald-50 border border-emerald-250 text-emerald-800 rounded-xl p-8 text-center">
-                <span className="text-4xl block mb-2">🎉</span>
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl p-8 text-center">
+                <div className="flex justify-center mb-3">
+                  <img
+                    src="/COGSPA.png"
+                    alt="COGSPA Logo"
+                    className="h-12 w-auto object-contain"
+                  />
+                </div>
                 <h3 className="text-lg font-bold">Request Submitted Successfully!</h3>
-                <p className="text-sm mt-2 text-emerald-600">
+                <p className="text-sm mt-2 text-emerald-700">
                   Your custom tool request has been captured in Netlify. Joe will be notified at jmicalle@gmail.com.
                 </p>
                 <button
