@@ -661,13 +661,28 @@ export default function ArtifactPlayground() {
     e.preventDefault();
     setFormStatus("submitting");
 
+    // In local development, simulate successful submission
+    if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+      setTimeout(() => {
+        setFormStatus("success");
+        setFormData({
+          toolType: "Plug-in",
+          integration: "",
+          notes: "",
+          name: "",
+          email: ""
+        });
+      }, 700);
+      return;
+    }
+
     fetch("/", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: encodeFormData({ "form-name": "custom-tool-requests", ...formData })
     })
       .then((response) => {
-        if (response.ok) {
+        if (response.ok || response.status === 200 || response.status === 303) {
           setFormStatus("success");
           setFormData({
             toolType: "Plug-in",
@@ -1165,8 +1180,10 @@ export default function ArtifactPlayground() {
             ) : (
               <form
                 name="custom-tool-requests"
-                onSubmit={handleContactSubmit}
+                method="POST"
                 data-netlify="true"
+                data-netlify-honeypot="bot-field"
+                onSubmit={handleContactSubmit}
                 className="space-y-6"
               >
                 {/* Netlify hidden input for SPA form detection */}

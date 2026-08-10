@@ -9,7 +9,8 @@
   <body>
     <div id="root"></div>
     <!-- Hidden form to let Netlify crawler detect the form fields for SPA submissions -->
-    <form name="custom-tool-requests" data-netlify="true" hidden>
+    <form name="custom-tool-requests" method="POST" data-netlify="true" netlify data-netlify-honeypot="bot-field" style="display: none">
+      <input type="hidden" name="form-name" value="custom-tool-requests" />
       <input type="text" name="toolType" />
       <input type="text" name="integration" />
       <textarea name="notes"></textarea>
