@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>v3</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- Hidden form to let Netlify crawler detect the form fields for SPA submissions -->
+    <form name="custom-tool-requests" data-netlify="true" hidden>
+      <input type="text" name="toolType" />
+      <input type="text" name="integration" />
+      <textarea name="notes"></textarea>
+      <input type="text" name="name" />
+      <input type="email" name="email" />
+    </form>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

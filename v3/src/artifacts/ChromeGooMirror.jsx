@@ -1,14 +1,27 @@
 /* ============================================================
-   ChromeGooMirror.jsx — single-file LIVE artifact
+   ChromeGooMirror.jsx — single-file LIVE artifact  (v2: THE TUBE)
 
-   This is the running tool, not a description of it. Everything
-   from the multi-file repo (gooEngine.js + tracking.js + App.jsx)
-   is inlined here so the artifact loader only needs one .jsx.
+   You are sealed in a tube of liquid black chrome. A real
+   per-pixel depth pass decides what breaks the surface:
+   lean toward the camera and your face rises out of the goo,
+   reach forward and only your hands emerge while the rest of
+   you stays a dark shape under the liquid. The "Z level"
+   slider is the fill line of the tube — sweep it and the goo
+   drains down your face in depth order.
 
-   MediaPipe is pulled from the jsDelivr ESM CDN at runtime, so
-   the host site needs no new npm dependency. If the models fail
-   to load, the toy keeps running on frame-difference wake +
-   pointer splats instead of dying.
+   Depth sources, in order of preference:
+     1. TRUE DEPTH — TensorFlow.js ARPortraitDepth (monocular
+        portrait depth model), loaded from the jsDelivr ESM CDN.
+        Per-pixel z of face / hands / torso, EMA-smoothed.
+     2. LANDMARK DEPTH — MediaPipe face + hand landmarks
+        rasterized into a depth map. Proximity is estimated
+        from apparent size (face width, palm length), so
+        leaning in still raises you out of the goo.
+     3. POINTER — no camera at all: the pointer is a glowing
+        blob that pokes through the surface.
+
+   Everything is inlined so the artifact loader only needs this
+   one .jsx. No new npm dependencies on the host site.
    ============================================================ */
 
 import React, { useRef, useEffect, useState, useCallback } from "react";
@@ -18,6 +31,8 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 /* ---------------------------------------------------------- */
 
 const MAX_POINTS = 64;
+const DEPTH_W = 256;
+const DEPTH_H = 192;
 
 const VERT = `
 attribute vec2 aPos;
@@ -27,17 +42,22 @@ void main(){
   gl_Position = vec4(aPos, 0.0, 1.0);
 }`;
 
+/* Ripple simulation across the WHOLE frame — the goo fills the
+   tube, so there is no horizontal waterline any more. Motion of
+   the body (where the depth pass says a body exists) stirs the
+   surface, strongest right where skin crosses the z slice. */
 const SIM_FRAG = `
 precision highp float;
 varying vec2 vUv;
 uniform sampler2D uRipple;
 uniform sampler2D uCur;
 uniform sampler2D uPrev;
+uniform sampler2D uDepth;
 uniform vec2  uTexel;
-uniform float uWater;
 uniform float uDamp;
 uniform float uWake;
 uniform float uMirror;
+uniform float uSlice;
 uniform vec2  uFit;
 uniform float uAspect;
 uniform vec3  uPts[${MAX_POINTS}];
@@ -62,117 +82,129 @@ void main(){
   float next = sum * 0.5 - p;
   next *= uDamp;
 
-  if (vUv.y < uWater){
-    for (int i = 0; i < ${MAX_POINTS}; i++){
-      if (i >= uNum) break;
-      vec2 d = vUv - uPts[i].xy;
-      d.x *= uAspect;
-      float g = exp(-dot(d, d) / 0.0011);
-      next += uPts[i].z * g;
-    }
+  for (int i = 0; i < ${MAX_POINTS}; i++){
+    if (i >= uNum) break;
+    vec2 d = vUv - uPts[i].xy;
+    d.x *= uAspect;
+    float g = exp(-dot(d, d) / 0.0011);
+    next += uPts[i].z * g;
+  }
 
-    if (uWake > 0.001){
-      vec2 rc = vec2(vUv.x, 2.0 * uWater - vUv.y);
-      if (rc.y <= 1.0){
-        vec2 tv = vidUV(rc);
-        vec3 a = texture2D(uCur,  tv).rgb;
-        vec3 b = texture2D(uPrev, tv).rgb;
-        float m = max(0.0, length(a - b) - 0.10);
-        float fade = 1.0 - 0.5 * smoothstep(0.0, uWater, uWater - vUv.y);
-        next += m * uWake * fade;
-      }
-      float band = smoothstep(0.06, 0.0, uWater - vUv.y);
-      if (band > 0.001){
-        vec2 tv2 = vidUV(vec2(vUv.x, uWater + 0.025));
-        float m2 = max(0.0, length(texture2D(uCur, tv2).rgb - texture2D(uPrev, tv2).rgb) - 0.10);
-        next += m2 * uWake * band * 1.6;
-      }
-    }
+  if (uWake > 0.001){
+    vec2 tv = vidUV(vUv);
+    vec3 a = texture2D(uCur,  tv).rgb;
+    vec3 b = texture2D(uPrev, tv).rgb;
+    float m = max(0.0, length(a - b) - 0.10);
+    float d = texture2D(uDepth, tv).r;
+    float presence = smoothstep(0.04, 0.18, d);
+    float band = exp(-pow((d - uSlice) / 0.09, 2.0));
+    next += m * uWake * presence * (0.30 + 1.5 * band);
   }
 
   next = clamp(next, -0.49, 0.49);
   gl_FragColor = vec4(next + 0.5, c + 0.5, 0.0, 1.0);
 }`;
 
+/* Composite: the z slice is the goo surface. depth > surface
+   emerges (wet, chrome-coated video); depth < surface is a dark
+   silhouette dissolving into the liquid; the crossing band gets
+   a meniscus ring. Ripple height displaces the surface in z, so
+   the goo genuinely sloshes over and off your skin. */
 const COMP_FRAG = `
 precision highp float;
 varying vec2 vUv;
 uniform sampler2D uRipple;
 uniform sampler2D uVideo;
+uniform sampler2D uDepth;
 uniform vec2  uSimTexel;
-uniform float uWater;
+uniform vec2  uDepthTexel;
 uniform float uMirror;
 uniform float uDistort;
 uniform float uSpec;
 uniform float uTime;
 uniform vec2  uFit;
-uniform float uReflect;
-uniform float uTransparency;
+uniform float uSlice;
+uniform float uMeniscus;
+uniform float uSlosh;
+uniform float uMurk;
+uniform float uWet;
 
 vec2 vidUV(vec2 p){
   p.x = mix(p.x, 1.0 - p.x, uMirror);
   return (p - 0.5) * uFit + 0.5;
 }
 float H(vec2 p){ return texture2D(uRipple, p).r - 0.5; }
+float D(vec2 p){ return texture2D(uDepth, p).r; }
 
 void main(){
-  float lineH = H(vec2(vUv.x, max(uWater - 2.0 * uSimTexel.y, 0.0)));
-  float wLine = uWater + lineH * 0.05;
-
-  if (vUv.y > wLine){
-    vec3 col = texture2D(uVideo, vidUV(vUv)).rgb;
-    col = pow(col, vec3(1.06));
-    float sh = smoothstep(0.06, 0.0, vUv.y - wLine);
-    col *= 1.0 - 0.38 * sh;
-    gl_FragColor = vec4(col, 1.0);
-    return;
-  }
-
+  float h  = H(vUv);
   float nx = H(vUv + vec2(uSimTexel.x, 0.0)) - H(vUv - vec2(uSimTexel.x, 0.0));
   float ny = H(vUv + vec2(0.0, uSimTexel.y)) - H(vUv - vec2(0.0, uSimTexel.y));
-  float h  = H(vUv);
-  vec3 n = normalize(vec3(-nx * 30.0, -ny * 30.0, 1.0));
+  vec3 rn = normalize(vec3(-nx * 30.0, -ny * 30.0, 1.0));
 
-  // Reflection (from mirrored vertical offset)
-  vec2 rc   = vec2(vUv.x, 2.0 * wLine - vUv.y);
-  vec2 baseRefl = rc + n.xy * uDistort;
-  float rr = texture2D(uVideo, vidUV(baseRefl + n.xy * 0.007)).r;
-  float gg = texture2D(uVideo, vidUV(baseRefl)).g;
-  float bb = texture2D(uVideo, vidUV(baseRefl - n.xy * 0.007)).b;
-  vec3 refl = vec3(rr, gg, bb);
+  vec2 warp = rn.xy * uDistort;
+  vec2 tv   = vidUV(vUv);
+  float d   = D(tv);
 
-  // Refraction (submerged directly under waterline)
-  vec2 baseRefr = vUv + n.xy * uDistort * 0.7;
-  float rRefr = texture2D(uVideo, vidUV(baseRefr + n.xy * 0.007)).r;
-  float gRefr = texture2D(uVideo, vidUV(baseRefr)).g;
-  float bRefr = texture2D(uVideo, vidUV(baseRefr - n.xy * 0.007)).b;
-  vec3 refr = vec3(rRefr, gRefr, bRefr);
+  // The goo surface in z, locally displaced by the ripple field.
+  float surface = uSlice + h * uSlosh;
+  float em = smoothstep(surface, surface + uMeniscus, d);
 
-  // Z-depth absorption (fading into the tub)
-  float depth = clamp((wLine - vUv.y) / max(wLine, 0.001), 0.0, 1.0);
-  vec3 submerged = mix(refr * mix(1.0, 0.0, pow(depth, 1.2 * uTransparency)), vec3(0.0), uTransparency * 0.4);
-
-  // Blend reflection surface and refraction/submerged body
-  vec3 blendedVideo = mix(submerged, refl, uReflect);
-
-  float lum = dot(blendedVideo, vec3(0.299, 0.587, 0.114));
-  vec3 chrome = pow(lum, 1.8) * vec3(0.40, 0.46, 0.56);
+  // Screen-space normals from the DEPTH pass (for wet shading
+  // that follows the actual geometry of face and hands).
+  float dxd = D(tv + vec2(uDepthTexel.x, 0.0)) - D(tv - vec2(uDepthTexel.x, 0.0));
+  float dyd = D(tv + vec2(0.0, uDepthTexel.y)) - D(tv - vec2(0.0, uDepthTexel.y));
+  vec3 dn = normalize(vec3(-dxd * 6.0, -dyd * 6.0, 0.35));
 
   vec3 L  = normalize(vec3(0.25, 0.9, 0.5));
   vec3 hv = normalize(L + vec3(0.0, 0.0, 1.0));
-  vec3 nA = normalize(vec3(n.x * 0.35, n.y, n.z));
-  float spec  = pow(max(dot(nA, hv), 0.0), 90.0);
-  float sheen = pow(max(dot(n,  hv), 0.0), 16.0);
-  vec3 col = chrome + (spec * 1.25 + sheen * 0.14) * uSpec * vec3(0.85, 0.92, 1.0);
 
-  // Depth color shading & tub liquid glow wash
-  col *= mix(1.0, 0.28, pow(depth, 0.8));
-  col += vec3(0.08, 0.28, 0.48) * pow(depth, 1.4) * (1.0 - uReflect);
-  col += vec3(0.55, 0.66, 0.82) * abs(h) * 1.5;
+  /* -------- GOO: liquid black chrome, whole tube -------- */
+  float gspec  = pow(max(dot(rn, hv), 0.0), 90.0);
+  float gsheen = pow(max(dot(rn, hv), 0.0), 16.0);
 
-  float edge = smoothstep(0.010, 0.0, wLine - vUv.y);
-  col += edge * vec3(0.9, 0.95, 1.0) * 0.7;
-  col += 0.018 * sin(vUv.x * 40.0 + uTime * 0.7 + h * 30.0) * (1.0 - depth);
+  // Faint refracted glimpse of the submerged body through murk:
+  // shallower parts read as brighter ghosts, deep parts vanish.
+  vec3  seen  = texture2D(uVideo, vidUV(vUv + warp * 1.4)).rgb;
+  float lum   = dot(seen, vec3(0.299, 0.587, 0.114));
+  float below = clamp((surface - d) / max(surface, 0.001), 0.0, 1.0);
+  float ghost = smoothstep(0.05, 0.55, d) * (1.0 - em) * uMurk;
+
+  vec3 goo = vec3(0.016, 0.020, 0.028);
+  goo += pow(lum, 1.8) * vec3(0.40, 0.46, 0.56) * ghost * mix(1.0, 0.12, pow(below, 0.8));
+  goo += (gspec * 1.25 + gsheen * 0.14) * uSpec * vec3(0.85, 0.92, 1.0);
+  goo += vec3(0.55, 0.66, 0.82) * abs(h) * 1.3;
+
+  /* -------- EMERGED: wet skin breaking the surface ------ */
+  vec3 skin = texture2D(uVideo, vidUV(vUv + warp * 0.15)).rgb;
+  skin = pow(skin, vec3(1.05));
+
+  float wspec = pow(max(dot(dn, hv), 0.0), 60.0) * uSpec;
+  float rimL  = pow(1.0 - max(dn.z, 0.0), 2.0);
+  vec3 chromeT = pow(dot(skin, vec3(0.299, 0.587, 0.114)), 1.6) * vec3(0.42, 0.48, 0.58);
+
+  // Chrome coating clings hardest just above the surface and
+  // dries off the further a part rises out of the goo.
+  float coat = uWet * (1.0 - smoothstep(surface + uMeniscus, surface + uMeniscus + 0.35, d));
+  vec3 wet = mix(skin, chromeT, coat * 0.8);
+  wet += (wspec + rimL * 0.2) * vec3(0.85, 0.92, 1.0) * (0.35 + coat);
+
+  vec3 col = mix(goo, wet, em);
+
+  /* -------- Meniscus: where skin crosses the slice ------ */
+  float ring = exp(-pow((d - surface) / (max(uMeniscus, 0.001) * 0.6), 2.0))
+             * smoothstep(0.02, 0.08, d);
+  col += ring * vec3(0.90, 0.95, 1.0) * 0.55;
+  col += ring * abs(h) * 2.0;
+
+  /* -------- Tube dressing ------------------------------- */
+  float cx   = vUv.x * 2.0 - 1.0;
+  float tube = sqrt(max(1.0 - cx * cx, 0.0));
+  col *= mix(0.30, 1.0, smoothstep(0.0, 0.20, tube));
+  float streak = pow(max(0.0, 1.0 - abs(cx - 0.55) * 8.0), 3.0)
+               + pow(max(0.0, 1.0 - abs(cx + 0.62) * 10.0), 3.0);
+  col += streak * vec3(0.50, 0.60, 0.75) * 0.05;
+  col += 0.012 * sin(vUv.y * 70.0 + uTime * 1.3 + h * 40.0) * tube;
 
   gl_FragColor = vec4(col, 1.0);
 }`;
@@ -222,17 +254,18 @@ class GooEngine {
     const U = (p, n) => gl.getUniformLocation(p, n);
     this.simU = {
       ripple: U(this.simProg, "uRipple"), cur: U(this.simProg, "uCur"), prev: U(this.simProg, "uPrev"),
-      texel: U(this.simProg, "uTexel"), water: U(this.simProg, "uWater"), damp: U(this.simProg, "uDamp"),
-      wake: U(this.simProg, "uWake"), mirror: U(this.simProg, "uMirror"), fit: U(this.simProg, "uFit"),
-      aspect: U(this.simProg, "uAspect"), pts: U(this.simProg, "uPts[0]"), num: U(this.simProg, "uNum"),
+      depth: U(this.simProg, "uDepth"), texel: U(this.simProg, "uTexel"), damp: U(this.simProg, "uDamp"),
+      wake: U(this.simProg, "uWake"), mirror: U(this.simProg, "uMirror"), slice: U(this.simProg, "uSlice"),
+      fit: U(this.simProg, "uFit"), aspect: U(this.simProg, "uAspect"),
+      pts: U(this.simProg, "uPts[0]"), num: U(this.simProg, "uNum"),
     };
     this.compU = {
-      ripple: U(this.compProg, "uRipple"), video: U(this.compProg, "uVideo"),
-      simTexel: U(this.compProg, "uSimTexel"), water: U(this.compProg, "uWater"),
+      ripple: U(this.compProg, "uRipple"), video: U(this.compProg, "uVideo"), depth: U(this.compProg, "uDepth"),
+      simTexel: U(this.compProg, "uSimTexel"), depthTexel: U(this.compProg, "uDepthTexel"),
       mirror: U(this.compProg, "uMirror"), distort: U(this.compProg, "uDistort"),
       spec: U(this.compProg, "uSpec"), time: U(this.compProg, "uTime"), fit: U(this.compProg, "uFit"),
-      reflect: U(this.compProg, "uReflect"), transparency: U(this.compProg, "uTransparency"),
-      depthMap: U(this.compProg, "uDepthMap"), depthSlice: U(this.compProg, "uDepthSlice"),
+      slice: U(this.compProg, "uSlice"), meniscus: U(this.compProg, "uMeniscus"),
+      slosh: U(this.compProg, "uSlosh"), murk: U(this.compProg, "uMurk"), wet: U(this.compProg, "uWet"),
     };
 
     this.rippleTex = [null, null];
@@ -293,6 +326,7 @@ class GooEngine {
       gl.bindTexture(gl.TEXTURE_2D, this.depthTex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, depthCanvas);
     } catch (e) {
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
       return;
     }
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
@@ -321,11 +355,12 @@ class GooEngine {
     gl.uniform1i(this.simU.ripple, 0);
     gl.uniform1i(this.simU.cur, 1);
     gl.uniform1i(this.simU.prev, 2);
+    gl.uniform1i(this.simU.depth, 3);
     gl.uniform2f(this.simU.texel, 1 / this.simW, 1 / this.simH);
-    gl.uniform1f(this.simU.water, params.water);
     gl.uniform1f(this.simU.damp, params.damp);
     gl.uniform1f(this.simU.wake, params.wake);
     gl.uniform1f(this.simU.mirror, params.mirror);
+    gl.uniform1f(this.simU.slice, params.slice);
     gl.uniform2f(this.simU.fit, fit[0], fit[1]);
     gl.uniform1f(this.simU.aspect, ca);
     gl.uniform3fv(this.simU.pts, this.ptsFlat);
@@ -338,6 +373,7 @@ class GooEngine {
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.rippleTex[src]);
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.vidTex[curVid]);
       gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, this.vidTex[prevVid]);
+      gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, this.depthTex);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       this.rippleIdx = dst;
       gl.uniform1i(this.simU.num, 0);
@@ -348,20 +384,22 @@ class GooEngine {
     gl.useProgram(this.compProg);
     gl.uniform1i(this.compU.ripple, 0);
     gl.uniform1i(this.compU.video, 1);
-    gl.uniform1i(this.compU.depthMap, 3);
+    gl.uniform1i(this.compU.depth, 3);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.rippleTex[this.rippleIdx]);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.vidTex[curVid]);
     gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, this.depthTex);
     gl.uniform2f(this.compU.simTexel, 1 / this.simW, 1 / this.simH);
-    gl.uniform1f(this.compU.water, params.water);
+    gl.uniform2f(this.compU.depthTexel, 1 / DEPTH_W, 1 / DEPTH_H);
     gl.uniform1f(this.compU.mirror, params.mirror);
     gl.uniform1f(this.compU.distort, params.distort);
     gl.uniform1f(this.compU.spec, params.spec);
     gl.uniform1f(this.compU.time, (performance.now() - this.t0) / 1000);
     gl.uniform2f(this.compU.fit, fit[0], fit[1]);
-    gl.uniform1f(this.compU.reflect, params.reflect);
-    gl.uniform1f(this.compU.transparency, params.transparency);
-    gl.uniform1f(this.compU.depthSlice, params.depthSlice);
+    gl.uniform1f(this.compU.slice, params.slice);
+    gl.uniform1f(this.compU.meniscus, params.meniscus);
+    gl.uniform1f(this.compU.slosh, params.slosh);
+    gl.uniform1f(this.compU.murk, params.murk);
+    gl.uniform1f(this.compU.wet, params.wet);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     this.vidIdx = prevVid;
@@ -377,7 +415,76 @@ class GooEngine {
 }
 
 /* ---------------------------------------------------------- */
-/* MediaPipe tracking (loaded from CDN, optional)             */
+/* TRUE DEPTH — ARPortraitDepth via TF.js from the CDN        */
+/* ---------------------------------------------------------- */
+
+const TF_CORE = "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.22.0/+esm";
+const TF_CONV = "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.22.0/+esm";
+const TF_WEBGL = "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.22.0/+esm";
+const TF_DEPTH = "https://cdn.jsdelivr.net/npm/@tensorflow-models/depth-estimation@0.0.3/+esm";
+
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, rej) => setTimeout(() => rej(new Error(`${label} timed out`)), ms)),
+  ]);
+}
+
+class TrueDepth {
+  constructor(estimator) {
+    this.estimator = estimator;
+    this.canvas = document.createElement("canvas");
+    this.canvas.width = DEPTH_W;
+    this.canvas.height = DEPTH_H;
+    const ctx = this.canvas.getContext("2d");
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, DEPTH_W, DEPTH_H);
+    this.busy = false;
+  }
+
+  static async create(onStatus) {
+    onStatus("Loading TensorFlow runtime");
+    const tf = await withTimeout(import(/* @vite-ignore */ TF_CORE), 25000, "tfjs-core");
+    await withTimeout(import(/* @vite-ignore */ TF_CONV), 25000, "tfjs-converter");
+    await withTimeout(import(/* @vite-ignore */ TF_WEBGL), 25000, "tfjs-backend-webgl");
+    await tf.setBackend("webgl");
+    await tf.ready();
+    onStatus("Loading portrait depth model");
+    const depth = await withTimeout(import(/* @vite-ignore */ TF_DEPTH), 25000, "depth-estimation");
+    const estimator = await withTimeout(
+      depth.createEstimator(depth.SupportedModels.ARPortraitDepth),
+      30000,
+      "depth model"
+    );
+    return new TrueDepth(estimator);
+  }
+
+  /** Runs one inference and EMA-blends it into the depth canvas. */
+  async update(video, invert) {
+    if (this.busy || !video || video.readyState < 2) return;
+    this.busy = true;
+    try {
+      const est = await this.estimator.estimateDepth(video, { minDepth: 0, maxDepth: 1 });
+      const src = await est.toCanvasImageSource();
+      const ctx = this.canvas.getContext("2d");
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 0.45; // temporal EMA — kills monocular flicker
+      ctx.filter = invert ? "invert(1)" : "none";
+      ctx.drawImage(src, 0, 0, DEPTH_W, DEPTH_H);
+      ctx.filter = "none";
+      ctx.globalAlpha = 1;
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  dispose() {
+    try { this.estimator && this.estimator.dispose && this.estimator.dispose(); } catch (e) {}
+  }
+}
+
+/* ---------------------------------------------------------- */
+/* MediaPipe tracking (ripple points + fallback depth)        */
 /* ---------------------------------------------------------- */
 
 const VISION_ESM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
@@ -389,6 +496,25 @@ const FACE_MODEL =
 
 const HAND_POINTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 const FACE_POINTS = [0, 4, 6, 10, 13, 14, 18, 33, 70, 107, 145, 152, 159, 168, 234, 263, 291, 300, 336, 374, 386, 454];
+const HAND_BONES = [
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  [5, 9], [9, 10], [10, 11], [11, 12],
+  [9, 13], [13, 14], [14, 15], [15, 16],
+  [13, 17], [17, 18], [18, 19], [19, 20],
+  [0, 17],
+];
+const FACE_OVAL = [
+  10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
+  397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
+  172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109,
+];
+
+const clamp01 = (v) => Math.min(Math.max(v, 0), 1);
+const gray = (v) => {
+  const g = Math.round(clamp01(v) * 255);
+  return `rgb(${g},${g},${g})`;
+};
 
 async function createTrackers(onStatus = () => {}) {
   onStatus("Loading vision runtime");
@@ -430,51 +556,101 @@ class TrackerRig {
     this.lastFace = null;
     this.lastTs = 0;
     this.depthCanvas = document.createElement("canvas");
-    this.depthCanvas.width = 320;
-    this.depthCanvas.height = 240;
+    this.depthCanvas.width = DEPTH_W;
+    this.depthCanvas.height = DEPTH_H;
+    const ctx = this.depthCanvas.getContext("2d");
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, DEPTH_W, DEPTH_H);
   }
 
-  updateDepthMap(handRes, faceRes) {
-    const canvas = this.depthCanvas;
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "black";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  /* Fallback depth pass, rasterized from landmarks.
+     Proximity comes from APPARENT SIZE (face width, wrist→knuckle
+     length), so leaning toward the camera raises your z even
+     though landmark z alone is only relative-within-part.
+     Per-landmark z then adds local relief (nose nearer than jaw,
+     fingertips nearer than wrist when pointing at the lens). */
+  paintLandmarkDepth(handRes, faceRes) {
+    const c = this.depthCanvas;
+    const ctx = c.getContext("2d");
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    ctx.filter = "none";
+    // Fade instead of clear → cheap temporal smoothing.
+    ctx.fillStyle = "rgba(0,0,0,0.38)";
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.filter = "blur(3px)";
+    ctx.globalCompositeOperation = "lighten"; // per-pixel max ≈ nearest wins
 
-    const drawCircle = (nx, ny, nz, radius) => {
-      const cx = nx * canvas.width;
-      const cy = ny * canvas.height;
-      // Map MediaPipe z coordinate to 0-255 grayscale
-      // MediaPipe z is usually in range [-0.15, 0.15], closer is more negative.
-      // So let's map (-0.18 to 0.12) to (255 to 0).
-      const zNorm = Math.min(Math.max((0.12 - nz) / 0.30, 0.0), 1.0);
-      const val = Math.round(zNorm * 255);
-      
-      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-      grad.addColorStop(0, `rgba(${val}, ${val}, ${val}, 1.0)`);
-      grad.addColorStop(1, `rgba(${val}, ${val}, ${val}, 0.0)`);
-      
-      ctx.fillStyle = grad;
+    const fl = faceRes && faceRes.faceLandmarks && faceRes.faceLandmarks[0];
+    if (fl) {
+      const wFace = Math.hypot(fl[454].x - fl[234].x, fl[454].y - fl[234].y);
+      const base = clamp01((wFace - 0.10) / 0.35);
       ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      FACE_OVAL.forEach((idx, i) => {
+        const p = fl[idx];
+        if (!p) return;
+        const x = p.x * c.width;
+        const y = p.y * c.height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      ctx.fillStyle = gray(base);
       ctx.fill();
-    };
+
+      // Nose / brow relief — nearer than the oval base.
+      const nose = fl[4];
+      if (nose) {
+        const r = Math.max(6, wFace * c.width * 0.32);
+        const cx = nose.x * c.width;
+        const cy = nose.y * c.height;
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        const v = gray(clamp01(base + 0.10 + (-nose.z) * 0.5));
+        g.addColorStop(0, v);
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
 
     if (handRes && handRes.landmarks) {
       handRes.landmarks.forEach((lm) => {
-        lm.forEach((pt) => {
-          drawCircle(pt.x, pt.y, pt.z, 28);
+        const w = lm[0], k = lm[9];
+        if (!w || !k) return;
+        const size = Math.hypot(k.x - w.x, k.y - w.y);
+        const base = clamp01((size - 0.05) / 0.22);
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.lineWidth = Math.max(5, size * c.width * 0.55);
+        HAND_BONES.forEach(([a, b]) => {
+          const pa = lm[a], pb = lm[b];
+          if (!pa || !pb) return;
+          const zLift = clamp01(base + (-(pa.z + pb.z) * 0.5) * 0.6);
+          ctx.strokeStyle = gray(zLift);
+          ctx.beginPath();
+          ctx.moveTo(pa.x * c.width, pa.y * c.height);
+          ctx.lineTo(pb.x * c.width, pb.y * c.height);
+          ctx.stroke();
+        });
+        // Fingertips read slightly nearer — they lead the reach.
+        [4, 8, 12, 16, 20].forEach((idx) => {
+          const p = lm[idx];
+          if (!p) return;
+          ctx.fillStyle = gray(clamp01(base + 0.06 + (-p.z) * 0.6));
+          ctx.beginPath();
+          ctx.arc(p.x * c.width, p.y * c.height, ctx.lineWidth * 0.55, 0, Math.PI * 2);
+          ctx.fill();
         });
       });
     }
 
-    if (faceRes && faceRes.faceLandmarks && faceRes.faceLandmarks[0]) {
-      faceRes.faceLandmarks[0].forEach((pt) => {
-        drawCircle(pt.x, pt.y, pt.z, 20);
-      });
-    }
+    ctx.globalCompositeOperation = "source-over";
+    ctx.filter = "none";
   }
 
-  getPoints(video, engine, params) {
+  getPoints(video, engine, params, wantLandmarkDepth) {
     const now = performance.now();
     const ts = Math.max(now, this.lastTs + 1);
     this.lastTs = ts;
@@ -485,7 +661,7 @@ class TrackerRig {
 
     const push = (key, nx, ny, gain) => {
       const c = engine.mapLandmark(nx, ny, params.mirror);
-      if (c.x < -0.05 || c.x > 1.05) return;
+      if (c.x < -0.05 || c.x > 1.05 || c.y < -0.05 || c.y > 1.05) return;
 
       const prev = this.prev.get(key);
       let speed = 0;
@@ -495,12 +671,11 @@ class TrackerRig {
 
       const s = Math.min(speed * gain, 0.45);
       if (s < 0.004) return;
-
-      const W = params.water;
-      let gy = c.y > W ? 2 * W - c.y : c.y;
-      if (gy < -0.05) return;
-      gy = Math.min(Math.max(gy, 0.005), W - 0.004);
-      pts.push({ x: c.x, y: gy, s });
+      pts.push({
+        x: c.x,
+        y: Math.min(Math.max(c.y, 0.005), 0.995),
+        s,
+      });
     };
 
     let handRes = null;
@@ -521,10 +696,11 @@ class TrackerRig {
           const isPinched = pinchDist < 0.05;
           if (isPinched && !this.pinched[hi]) {
             const c = engine.mapLandmark((t.x + i8.x) / 2, (t.y + i8.y) / 2, params.mirror);
-            const W = params.water;
-            let gy = c.y > W ? 2 * W - c.y : c.y;
-            gy = Math.min(Math.max(gy, 0.005), W - 0.004);
-            pts.push({ x: c.x, y: gy, s: 0.4 });
+            pts.push({
+              x: c.x,
+              y: Math.min(Math.max(c.y, 0.005), 0.995),
+              s: 0.4,
+            });
           }
           this.pinched[hi] = isPinched;
         }
@@ -550,7 +726,7 @@ class TrackerRig {
       if (!seen.has(key)) this.prev.delete(key);
     }
 
-    this.updateDepthMap(handRes, this.lastFace);
+    if (wantLandmarkDepth) this.paintLandmarkDepth(handRes, this.lastFace);
 
     return pts;
   }
@@ -577,7 +753,7 @@ const CSS = `
   background: linear-gradient(180deg, #f2f5fa 0%, #9aa4b5 38%, #2a3040 52%, #c8d2e2 66%, #565f72 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 2px 14px rgba(150,170,210,0.25)); }
-.cgm-sub { color: #7d8698; font-size: 14px; max-width: 440px; line-height: 1.55; }
+.cgm-sub { color: #7d8698; font-size: 14px; max-width: 460px; line-height: 1.55; }
 .cgm-start { padding: 13px 32px; font-size: 15px; font-weight: 600; letter-spacing: 0.05em;
   color: #0a0c12; cursor: pointer; border: none; border-radius: 999px;
   background: linear-gradient(180deg, #eef2f8, #a9b3c4 55%, #7d8698);
@@ -593,6 +769,9 @@ const CSS = `
   font-size: 12px; letter-spacing: 0.06em; color: #c8d0dd; background: rgba(10,12,18,0.55);
   border: 1px solid rgba(160,175,200,0.25); border-radius: 999px; cursor: pointer;
   backdrop-filter: blur(8px); }
+.cgm-zpip { position: absolute; right: 12px; top: 52px; z-index: 3; width: 160px; height: 120px;
+  border: 1px solid rgba(160,175,200,0.3); border-radius: 8px; background: #000;
+  image-rendering: pixelated; }
 .cgm-panel { position: absolute; left: 0; bottom: 0; width: 100%; z-index: 2;
   display: flex; flex-direction: column; gap: 12px; padding: 12px 16px;
   background: rgba(8,10,16,0.85); border-top: 1px solid rgba(160,175,200,0.18);
@@ -606,7 +785,7 @@ const CSS = `
 .cgm-row input[type="range"] { width: 100%; accent-color: #c8d2e2; height: 4px; margin: 0; padding: 0; }
 .cgm-lab { font-size: 11px; color: #9aa4b5; letter-spacing: 0.04em; }
 .cgm-val { font-size: 10px; color: #6b7485; text-align: right; font-variant-numeric: tabular-nums; }
-.cgm-foot { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-shrink: 0; }
+.cgm-foot { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap; flex-shrink: 0; }
 .cgm-btn { padding: 6px 12px; font-size: 11px; color: #c8d0dd; cursor: pointer;
   background: rgba(30,34,46,0.7); border: 1px solid rgba(160,175,200,0.25); border-radius: 999px; }
 .cgm-rec { color: #ffb4b4; border-color: rgba(255,140,140,0.45); }
@@ -632,9 +811,12 @@ export default function ChromeGooMirror() {
 
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
+  const zpipRef = useRef(null);
   const videoRef = useRef(null);
   const engineRef = useRef(null);
   const rigRef = useRef(null);
+  const trueDepthRef = useRef(null);
+  const depthLoopRef = useRef(false);
   const streamRef = useRef(null);
   const rafRef = useRef(0);
   const pointerRef = useRef(null);
@@ -643,13 +825,18 @@ export default function ChromeGooMirror() {
   const [phase, setPhase] = useState("idle"); // idle | loading | running
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
-  const [tracking, setTracking] = useState(true);
+  const [depthMode, setDepthMode] = useState("none"); // true | landmark | pointer | none
   const [showPanel, setShowPanel] = useState(true);
   const [recording, setRecording] = useState(false);
   const [isFallback, setIsFallback] = useState(false);
+  const [zView, setZView] = useState(false);
 
   const isFallbackRef = useRef(false);
   isFallbackRef.current = isFallback;
+  const zViewRef = useRef(false);
+  zViewRef.current = zView;
+  const depthModeRef = useRef("none");
+  depthModeRef.current = depthMode;
   const fallbackCanvasRef = useRef(null);
   const fallbackDepthCanvasRef = useRef(null);
 
@@ -664,7 +851,6 @@ export default function ChromeGooMirror() {
     const ctx = c.getContext("2d");
     const t = performance.now() * 0.001;
 
-    // Draw dark background gradient
     const grad = ctx.createLinearGradient(0, 0, c.width, c.height);
     grad.addColorStop(0, "#081426");
     grad.addColorStop(0.5, "#0b2545");
@@ -672,50 +858,41 @@ export default function ChromeGooMirror() {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, c.width, c.height);
 
-    // Draw tech gridlines
     ctx.strokeStyle = "rgba(0, 180, 216, 0.15)";
     ctx.lineWidth = 1;
     const grid = 40;
     for (let x = 0; x < c.width; x += grid) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, c.height);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, c.height); ctx.stroke();
     }
     for (let y = 0; y < c.height; y += grid) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(c.width, y);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(c.width, y); ctx.stroke();
     }
 
-    // Draw moving glowing color sweeps
     ctx.fillStyle = "rgba(0, 180, 216, 0.12)";
     for (let i = 0; i < 3; i++) {
       const cx = c.width * 0.5 + Math.sin(t * 0.5 + i) * c.width * 0.3;
       const cy = c.height * 0.5 + Math.cos(t * 0.7 + i) * c.height * 0.3;
       const r = 80 + Math.sin(t + i) * 20;
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
     }
-
     return c;
   };
 
   const [params, setParams] = useState({
-    water: 0.5,
+    slice: 0.45,      // the fill line of the tube, in z
+    meniscus: 0.10,   // width of the surface-crossing band
+    slosh: 0.22,      // how much ripples displace the surface in z
+    damp: 0.985,
     handPower: 8.5,
     facePower: 6.0,
     wake: 1.5,
-    damp: 0.985,
     distort: 0.06,
     spec: 1.0,
+    murk: 0.55,       // visibility of the submerged body through the goo
+    wet: 0.7,         // chrome coating on freshly-emerged skin
     mirror: 1,
     faceOn: true,
-    reflect: 0.6,
-    transparency: 0.65,
-    depthSlice: 0.15,
+    invertZ: true,    // flip the depth pass if near/far read backwards
   });
   const paramsRef = useRef(params);
   paramsRef.current = params;
@@ -739,14 +916,24 @@ export default function ChromeGooMirror() {
       await video.play();
       videoRef.current = video;
 
+      // MediaPipe rig: ripple points always, depth fallback if needed.
       try {
         rigRef.current = await createTrackers(setStatus);
-        setTracking(true);
       } catch (e) {
-        console.warn("MediaPipe unavailable, falling back to wake + pointer", e);
+        console.warn("MediaPipe unavailable", e);
         rigRef.current = null;
-        setTracking(false);
       }
+
+      // True depth model: the star of the show, but optional.
+      try {
+        trueDepthRef.current = await TrueDepth.create(setStatus);
+        setDepthMode("true");
+      } catch (e) {
+        console.warn("Portrait depth model unavailable, using landmark depth", e);
+        trueDepthRef.current = null;
+        setDepthMode(rigRef.current ? "landmark" : "pointer");
+      }
+
       setPhase("running");
     } catch (e) {
       console.error(e);
@@ -764,7 +951,7 @@ export default function ChromeGooMirror() {
   const startFallback = useCallback(() => {
     setError("");
     setIsFallback(true);
-    setTracking(false);
+    setDepthMode("pointer");
     setPhase("running");
   }, []);
 
@@ -772,6 +959,8 @@ export default function ChromeGooMirror() {
     setPhase("idle");
     setIsFallback(false);
     setRecording(false);
+    setDepthMode("none");
+    depthLoopRef.current = false;
     cancelAnimationFrame(rafRef.current);
     if (recRef.current && recRef.current.state !== "inactive") {
       try { recRef.current.stop(); } catch (e) {}
@@ -785,8 +974,36 @@ export default function ChromeGooMirror() {
       rigRef.current.dispose();
       rigRef.current = null;
     }
+    if (trueDepthRef.current) {
+      trueDepthRef.current.dispose();
+      trueDepthRef.current = null;
+    }
     videoRef.current = null;
   }, []);
+
+  /* True-depth inference loop — independent of the render loop so
+     a slow inference never stalls the goo. ~15 Hz + EMA in the
+     canvas is plenty; the ripple sim hides the latency. */
+  useEffect(() => {
+    if (phase !== "running" || !trueDepthRef.current) return;
+    depthLoopRef.current = true;
+    let cancelled = false;
+    (async () => {
+      while (depthLoopRef.current && !cancelled) {
+        try {
+          await trueDepthRef.current.update(videoRef.current, paramsRef.current.invertZ);
+        } catch (e) {
+          // Model died mid-run → drop to landmark depth for the session.
+          console.warn("Depth inference failed, switching to landmark depth", e);
+          depthLoopRef.current = false;
+          setDepthMode(rigRef.current ? "landmark" : "pointer");
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    })();
+    return () => { cancelled = true; depthLoopRef.current = false; };
+  }, [phase]);
 
   useEffect(() => {
     if (phase !== "running") return;
@@ -814,6 +1031,35 @@ export default function ChromeGooMirror() {
     const ro = new ResizeObserver(resize);
     ro.observe(wrapRef.current);
 
+    const getPointerDepthCanvas = () => {
+      if (!fallbackDepthCanvasRef.current) {
+        const c = document.createElement("canvas");
+        c.width = DEPTH_W;
+        c.height = DEPTH_H;
+        const ictx = c.getContext("2d");
+        ictx.fillStyle = "black";
+        ictx.fillRect(0, 0, DEPTH_W, DEPTH_H);
+        fallbackDepthCanvasRef.current = c;
+      }
+      const fdc = fallbackDepthCanvasRef.current;
+      const fctx = fdc.getContext("2d");
+      fctx.fillStyle = "rgba(0,0,0,0.25)";
+      fctx.fillRect(0, 0, fdc.width, fdc.height);
+      const pr = pointerRef.current;
+      if (pr && pr.active && performance.now() - pr.t < 160) {
+        const cx = pr.x * fdc.width;
+        const cy = (1 - pr.y) * fdc.height;
+        const grad = fctx.createRadialGradient(cx, cy, 0, cx, cy, 34);
+        grad.addColorStop(0, "rgba(255,255,255,1.0)");
+        grad.addColorStop(1, "rgba(255,255,255,0.0)");
+        fctx.fillStyle = grad;
+        fctx.beginPath();
+        fctx.arc(cx, cy, 34, 0, Math.PI * 2);
+        fctx.fill();
+      }
+      return fdc;
+    };
+
     const loop = () => {
       rafRef.current = requestAnimationFrame(loop);
       const isFb = isFallbackRef.current;
@@ -821,50 +1067,40 @@ export default function ChromeGooMirror() {
       if (!video) return;
       if (video instanceof HTMLVideoElement && video.readyState < 2) return;
       const p = paramsRef.current;
+      const mode = depthModeRef.current;
 
-      const pts = rigRef.current ? rigRef.current.getPoints(video, engine, p) : [];
+      const pts = rigRef.current
+        ? rigRef.current.getPoints(video, engine, p, mode === "landmark")
+        : [];
 
       // pointer splats — always on, and the whole story when tracking is off
       const pr = pointerRef.current;
       if (pr && pr.active && performance.now() - pr.t < 120) {
         const s = Math.min(pr.speed * 9, 0.4);
         if (s > 0.004) {
-          const W = p.water;
-          let gy = pr.y > W ? 2 * W - pr.y : pr.y;
-          gy = Math.min(Math.max(gy, 0.005), W - 0.004);
-          pts.push({ x: pr.x, y: gy, s });
+          pts.push({
+            x: pr.x,
+            y: Math.min(Math.max(pr.y, 0.005), 0.995),
+            s,
+          });
         }
       }
 
       let depthCanvas;
-      if (rigRef.current) {
+      if (mode === "true" && trueDepthRef.current) {
+        depthCanvas = trueDepthRef.current.canvas;
+      } else if (mode === "landmark" && rigRef.current) {
         depthCanvas = rigRef.current.depthCanvas;
       } else {
-        if (!fallbackDepthCanvasRef.current) {
-          fallbackDepthCanvasRef.current = document.createElement("canvas");
-          fallbackDepthCanvasRef.current.width = 320;
-          fallbackDepthCanvasRef.current.height = 240;
-        }
-        const fdc = fallbackDepthCanvasRef.current;
-        const fctx = fdc.getContext("2d");
-        fctx.fillStyle = "black";
-        fctx.fillRect(0, 0, fdc.width, fdc.height);
-
-        if (pr && pr.active && performance.now() - pr.t < 120) {
-          const cx = pr.x * fdc.width;
-          const cy = (1 - pr.y) * fdc.height;
-          const grad = fctx.createRadialGradient(cx, cy, 0, cx, cy, 35);
-          grad.addColorStop(0, "rgba(255, 255, 255, 1.0)");
-          grad.addColorStop(1, "rgba(255, 255, 255, 0.0)");
-          fctx.fillStyle = grad;
-          fctx.beginPath();
-          fctx.arc(cx, cy, 35, 0, Math.PI * 2);
-          fctx.fill();
-        }
-        depthCanvas = fdc;
+        depthCanvas = getPointerDepthCanvas();
       }
 
       engine.render(video, depthCanvas, pts, p);
+
+      if (zViewRef.current && zpipRef.current) {
+        const zc = zpipRef.current.getContext("2d");
+        zc.drawImage(depthCanvas, 0, 0, zpipRef.current.width, zpipRef.current.height);
+      }
     };
     rafRef.current = requestAnimationFrame(loop);
 
@@ -933,6 +1169,12 @@ export default function ChromeGooMirror() {
     </label>
   );
 
+  const modeLabel =
+    depthMode === "true" ? "Z: portrait depth model"
+    : depthMode === "landmark" ? "Z: landmark estimate"
+    : depthMode === "pointer" ? "Z: pointer blob — move to surface"
+    : "";
+
   return (
     <div
       ref={wrapRef}
@@ -946,15 +1188,16 @@ export default function ChromeGooMirror() {
         <div className="cgm-overlay">
           <div className="cgm-title">CHROME&nbsp;GOO</div>
           <div className="cgm-sub">
-            Your webcam feed, half-submerged in liquid black chrome. Fingertips
-            stir the surface, a pinch throws a splash, and every move above the
-            waterline echoes in the reflection below.
+            You're sealed in a tube of liquid black chrome. A live depth pass
+            decides what breaks the surface — lean in and your face rises out
+            of the goo, reach forward and only your hands emerge. Sweep the Z
+            level to drain the tube in depth order.
           </div>
           {phase === "idle" ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
               <button className="cgm-start" onClick={start}>Turn on camera</button>
-              <button 
-                className="cgm-toggle" 
+              <button
+                className="cgm-toggle"
                 style={{ position: "static", transform: "none", background: "rgba(30,34,46,0.7)" }}
                 onClick={startFallback}
               >
@@ -967,8 +1210,8 @@ export default function ChromeGooMirror() {
           {error && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", marginTop: "10px" }}>
               <div className="cgm-error">{error}</div>
-              <button 
-                className="cgm-start" 
+              <button
+                className="cgm-start"
                 style={{ padding: "8px 20px", fontSize: "12px" }}
                 onClick={startFallback}
               >
@@ -981,41 +1224,46 @@ export default function ChromeGooMirror() {
 
       {phase === "running" && (
         <>
-          <div className="cgm-note">
-            {tracking ? "Hands + face tracked" : "Move the pointer to stir — tracking offline"}
-          </div>
+          <div className="cgm-note">{modeLabel}</div>
           <button className="cgm-toggle" onClick={() => setShowPanel((s) => !s)}>
             {showPanel ? "Hide controls" : "Controls"}
           </button>
+          {zView && <canvas ref={zpipRef} className="cgm-zpip" width={160} height={120} />}
           {showPanel && (
             <div className="cgm-panel">
               <div className="cgm-controls-grid">
-                <Slider label="Goo level" value={params.water} min={0.15} max={0.75} step={0.01}
-                  onChange={set("water")} fmt={(v) => `${Math.round(v * 100)}%`} />
-                <Slider label="Hand power" value={params.handPower} min={0} max={16} step={0.5}
+                <Slider label="Z level" value={params.slice} min={0.05} max={0.95} step={0.01}
+                  onChange={set("slice")} fmt={(v) => `${Math.round(v * 100)}%`} />
+                <Slider label="Meniscus" value={params.meniscus} min={0.02} max={0.30} step={0.01}
+                  onChange={set("meniscus")} fmt={(v) => v.toFixed(2)} />
+                <Slider label="Slosh" value={params.slosh} min={0} max={0.6} step={0.02}
+                  onChange={set("slosh")} fmt={(v) => v.toFixed(2)} />
+                <Slider label="Viscosity" value={params.damp} min={0.9} max={0.997} step={0.001}
+                  onChange={set("damp")} fmt={(v) => (1 - v).toFixed(3)} />
+                <Slider label="Hand stir" value={params.handPower} min={0} max={16} step={0.5}
                   onChange={set("handPower")} fmt={(v) => v.toFixed(1)} />
-                <Slider label="Face power" value={params.facePower} min={0} max={10} step={0.5}
+                <Slider label="Face stir" value={params.facePower} min={0} max={10} step={0.5}
                   onChange={set("facePower")} fmt={(v) => v.toFixed(1)} />
                 <Slider label="Body wake" value={params.wake} min={0} max={4} step={0.1}
                   onChange={set("wake")} fmt={(v) => v.toFixed(1)} />
-                <Slider label="Viscosity" value={params.damp} min={0.9} max={0.997} step={0.001}
-                  onChange={set("damp")} fmt={(v) => (1 - v).toFixed(3)} />
                 <Slider label="Warp" value={params.distort} min={0} max={0.15} step={0.005}
                   onChange={set("distort")} fmt={(v) => v.toFixed(2)} />
                 <Slider label="Shine" value={params.spec} min={0} max={2} step={0.05}
                   onChange={set("spec")} fmt={(v) => v.toFixed(2)} />
-                <Slider label="Reflection" value={params.reflect} min={0.0} max={1.0} step={0.05}
-                  onChange={set("reflect")} fmt={(v) => `${Math.round(v * 100)}%`} />
-                <Slider label="Transparency" value={params.transparency} min={0.0} max={1.0} step={0.05}
-                  onChange={set("transparency")} fmt={(v) => `${Math.round((1 - v) * 100)}%`} />
-                <Slider label="Depth Slice" value={params.depthSlice} min={0.0} max={1.0} step={0.02}
-                  onChange={set("depthSlice")} fmt={(v) => `${Math.round(v * 100)}%`} />
+                <Slider label="Murk" value={params.murk} min={0} max={1} step={0.05}
+                  onChange={set("murk")} fmt={(v) => `${Math.round(v * 100)}%`} />
+                <Slider label="Wet coat" value={params.wet} min={0} max={1} step={0.05}
+                  onChange={set("wet")} fmt={(v) => `${Math.round(v * 100)}%`} />
               </div>
               <div className="cgm-foot">
                 <button className="cgm-btn" style={{ opacity: params.faceOn ? 1 : 0.5 }}
                   onClick={() => set("faceOn")(!params.faceOn)}>Face</button>
                 <button className="cgm-btn" style={{ opacity: params.mirror ? 1 : 0.5 }}
                   onClick={() => set("mirror")(params.mirror ? 0 : 1)}>Mirror</button>
+                <button className="cgm-btn" style={{ opacity: params.invertZ ? 1 : 0.5 }}
+                  onClick={() => set("invertZ")(!params.invertZ)}>Flip Z</button>
+                <button className="cgm-btn" style={{ opacity: zView ? 1 : 0.5 }}
+                  onClick={() => setZView((z) => !z)}>Z pass</button>
                 <button className={`cgm-btn${recording ? " cgm-rec" : ""}`} onClick={toggleRecord}>
                   {recording ? "Stop recording" : "Record"}
                 </button>
