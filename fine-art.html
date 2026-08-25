@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fine Art Gallery — Joe Micallef</title>
+    <link rel="icon" type="image/png" href="images/COGSPA.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #000000;
+            --muted: #f3f3f3;
+            --border: #e2e2e2;
+            --max-width: 1440px;
+            --side-pad: clamp(16px, 2.5vw, 32px);
+            --section-gap: clamp(48px, 8vw, 120px);
+            --title-size: clamp(3rem, 8vw, 5rem);
+            --h2-size: clamp(2rem, 5vw, 3.5rem);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 60px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Instrument Sans", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Fixed Nav Bar */
+        .fixed-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid #000000;
+            z-index: 1000;
+            padding: 12px var(--side-pad);
+        }
+
+        .nav-container {
+            width: min(100%, var(--max-width));
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px 20px;
+            justify-content: flex-start;
+        }
+
+        .nav-container a {
+            color: #000000;
+            text-decoration: none;
+            font-size: clamp(0.75rem, 1.1vw, 0.95rem);
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            transition: opacity 0.2s ease;
+        }
+
+        .nav-container a:hover {
+            opacity: 0.5;
+        }
+
+        .nav-container a.active {
+            text-decoration: underline;
+            text-underline-offset: 4px;
+            font-weight: 800;
+        }
+
+        .page {
+            width: 100%;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: min(100%, var(--max-width));
+            margin: 0 auto;
+            padding: clamp(80px, 8vw, 100px) var(--side-pad) 80px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 32px;
+            color: inherit;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: opacity 0.2s ease;
+        }
+
+        .back-link:hover {
+            opacity: 0.6;
+        }
+
+        h1.site-title {
+            font-size: var(--title-size);
+            font-weight: 400;
+            margin: 0 0 24px 0;
+            line-height: 1;
+            letter-spacing: -0.01em;
+        }
+
+        .hero-name {
+            font-weight: 700;
+            display: block;
+        }
+
+        .hero-sub {
+            font-weight: 400;
+            font-size: 0.65em;
+            display: block;
+            margin-top: 0.15em;
+            letter-spacing: 0.02em;
+        }
+
+        .header-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            gap: 20px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 24px;
+            margin-bottom: 40px;
+        }
+
+        h2.page-title {
+            font-size: var(--h2-size);
+            font-weight: 700;
+            margin: 0;
+            line-height: 1;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .page-desc {
+            font-size: clamp(1rem, 1.8vw, 1.2rem);
+            line-height: 1.5;
+            max-width: 720px;
+            color: #444;
+            margin: 0;
+        }
+
+        /* Gallery Grid Layout */
+        .gallery-columns {
+            column-count: 3;
+            column-gap: 24px;
+            width: 100%;
+        }
+
+        @media (max-width: 1024px) {
+            .gallery-columns {
+                column-count: 2;
+                column-gap: 20px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .gallery-columns {
+                column-count: 1;
+            }
+            .fixed-nav {
+                padding: 10px var(--side-pad);
+            }
+            .nav-container {
+                gap: 8px 12px;
+            }
+            .nav-container a {
+                font-size: 0.7rem;
+            }
+        }
+
+        .gallery-card {
+            break-inside: avoid;
+            margin-bottom: 24px;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
+        }
+
+        .gallery-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.12);
+            border-color: #000000;
+        }
+
+        .gallery-card-image-wrap {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+            background: #f0f0f0;
+        }
+
+        .gallery-card img {
+            width: 100%;
+            height: auto;
+            display: block;
+            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .gallery-card:hover img {
+            transform: scale(1.03);
+        }
+
+        .gallery-card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 60%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            display: flex;
+            align-items: flex-end;
+            padding: 20px;
+        }
+
+        .gallery-card:hover .gallery-card-overlay {
+            opacity: 1;
+        }
+
+        .gallery-card-caption {
+            color: #ffffff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .gallery-card-caption span {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            font-weight: 400;
+        }
+
+        /* Lightbox Modal */
+        .lightbox-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .lightbox-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .lightbox-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px var(--side-pad);
+            z-index: 2010;
+            color: #ffffff;
+        }
+
+        .lightbox-counter {
+            font-family: monospace;
+            font-size: 0.9rem;
+            letter-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .lightbox-close-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .lightbox-close-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.05);
+        }
+
+        .lightbox-body {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 80px var(--side-pad) 80px;
+        }
+
+        .lightbox-image {
+            max-width: 90vw;
+            max-height: 80vh;
+            object-fit: contain;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+            border-radius: 4px;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .lightbox-nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+            z-index: 2010;
+        }
+
+        .lightbox-nav-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-50%) scale(1.08);
+        }
+
+        .lightbox-prev {
+            left: clamp(16px, 4vw, 40px);
+        }
+
+        .lightbox-next {
+            right: clamp(16px, 4vw, 40px);
+        }
+
+        .lightbox-caption {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 0.95rem;
+            font-weight: 500;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 20px;
+            border-radius: 20px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navigation Bar -->
+    <nav class="fixed-nav">
+        <div class="nav-container">
+            <a href="index.html#context-engineering">CONTEXT ENGINEERING / AI ARTIFACTS</a>
+            <a href="https://platform-artifacts-playground.netlify.app/" target="_blank" rel="noopener noreferrer" style="font-weight: 700;">ARTIFACT PLAYGROUND</a>
+            <a href="index.html#demo-reel">REEL</a>
+            <a href="index.html#design">DESIGN (PRINT)</a>
+            <a href="print-gallery.html">PRINT GALLERY</a>
+            <a href="fine-art.html" class="active">FINE ART</a>
+            <a href="index.html#case-studies">CASE STUDIES</a>
+            <a href="videography.html">VIDEOGRAPHY</a>
+            <a href="animation.html">ANIMATION</a>
+            <a href="https://monsterrig.blogspot.com/" target="_blank" rel="noopener noreferrer">ZBRUSH MODELS</a>
+            <a href="https://jmicallefprofport.com/" target="_blank" rel="noopener noreferrer">EDUCATOR PORTFOLIO</a>
+        </div>
+    </nav>
+
+    <div class="page">
+        <main class="container">
+            <a href="index.html" class="back-link">&larr; Back to Home</a>
+
+            <h1 class="site-title">
+                <span class="hero-name">JOE MICALLEF</span>
+                <span class="hero-sub">CREATIVE DIRECTOR • MULTIMEDIA / DESIGN / CODE</span>
+            </h1>
+
+            <div class="header-meta">
+                <div>
+                    <h2 class="page-title">Fine Art Gallery</h2>
+                </div>
+                <p class="page-desc">
+                    A curated collection of original fine art pieces, studio drawings, traditional media studies, and figurative works. Click any image to view in high resolution.
+                </p>
+            </div>
+
+            <!-- Masonry Gallery Columns -->
+            <div class="gallery-columns" id="fine-art-grid">
+                <!-- Cards generated dynamically or styled inline -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Lightbox Modal -->
+    <div class="lightbox-modal" id="lightbox">
+        <div class="lightbox-header">
+            <div class="lightbox-counter" id="lightbox-counter">01 / 10</div>
+            <button class="lightbox-close-btn" id="lightbox-close" aria-label="Close modal">&times;</button>
+        </div>
+
+        <div class="lightbox-body">
+            <button class="lightbox-nav-btn lightbox-prev" id="lightbox-prev" aria-label="Previous image">&#8592;</button>
+            <img src="" alt="Fine Art Image" class="lightbox-image" id="lightbox-img">
+            <button class="lightbox-nav-btn lightbox-next" id="lightbox-next" aria-label="Next image">&#8594;</button>
+        </div>
+
+        <div class="lightbox-caption" id="lightbox-caption">Fine Art Study</div>
+    </div>
+
+    <script>
+        const ARTWORKS = [
+            {
+                thumb: "artgallery/thumbs/IMG_4068.jpeg",
+                full: "artgallery/IMG_4068.jpeg",
+                title: "Fine Art Study I",
+                subtitle: "Studio Original"
+            },
+            {
+                thumb: "artgallery/thumbs/IMG_4069.jpeg",
+                full: "artgallery/IMG_4069.jpeg",
+                title: "Fine Art Study II",
+                subtitle: "Studio Original"
+            },
+            {
+                thumb: "artgallery/thumbs/IMG_4071 2.jpeg",
+                full: "artgallery/IMG_4071%202.jpeg",
+                title: "Fine Art Study III",
+                subtitle: "Studio Original"
+            },
+            {
+                thumb: "artgallery/thumbs/IMG_4072.jpeg",
+                full: "artgallery/IMG_4072.jpeg",
+                title: "Fine Art Study IV",
+                subtitle: "Studio Original"
+            },
+            {
+                thumb: "artgallery/thumbs/IMG_4073.jpeg",
+                full: "artgallery/IMG_4073.jpeg",
+                title: "Fine Art Study V",
+                subtitle: "Studio Original"
+            },
+            {
+                thumb: "artgallery/thumbs/IMG_4074.jpeg",
+                full: "artgallery/IMG_4074.jpeg",
+                title: "Fine Art Study VI",
+                subtitle: "Studio Original"
+            },
+            {
+                thumb: "artgallery/thumbs/IMG_4075.jpeg",
+                full: "artgallery/IMG_4075.jpeg",
+                title: "Fine Art Study VII",
+                subtitle: "Studio Original"
+            },
+            {
+                thumb: "artgallery/thumbs/IMG_4076.jpeg",
+                full: "artgallery/IMG_4076.jpeg",
+                title: "Fine Art Study VIII",
+                subtitle: "Studio Original"
+            },
+            {
+                thumb: "artgallery/thumbs/IMG_4077.jpeg",
+                full: "artgallery/IMG_4077.jpeg",
+                title: "Fine Art Study IX",
+                subtitle: "Studio Original"
+            },
+            {
+                thumb: "artgallery/thumbs/IMG_4078.jpeg",
+                full: "artgallery/IMG_4078.jpeg",
+                title: "Fine Art Study X",
+                subtitle: "Studio Original"
+            }
+        ];
+
+        let currentIndex = 0;
+
+        const gridEl = document.getElementById("fine-art-grid");
+        const lightboxEl = document.getElementById("lightbox");
+        const lightboxImg = document.getElementById("lightbox-img");
+        const lightboxCounter = document.getElementById("lightbox-counter");
+        const lightboxCaption = document.getElementById("lightbox-caption");
+        const closeBtn = document.getElementById("lightbox-close");
+        const prevBtn = document.getElementById("lightbox-prev");
+        const nextBtn = document.getElementById("lightbox-next");
+
+        // Build Gallery Cards
+        ARTWORKS.forEach((item, index) => {
+            const card = document.createElement("div");
+            card.className = "gallery-card";
+            card.setAttribute("tabindex", "0");
+            card.setAttribute("role", "button");
+            card.setAttribute("aria-label", `View ${item.title}`);
+            card.innerHTML = `
+                <div class="gallery-card-image-wrap">
+                    <img src="${item.thumb}" alt="${item.title}" loading="lazy">
+                    <div class="gallery-card-overlay">
+                        <div class="gallery-card-caption">
+                            ${item.title} <span>• Click to Zoom</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            card.addEventListener("click", () => openLightbox(index));
+            card.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openLightbox(index);
+                }
+            });
+            gridEl.appendChild(card);
+        });
+
+        function openLightbox(index) {
+            currentIndex = index;
+            updateLightboxContent();
+            lightboxEl.classList.add("active");
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeLightbox() {
+            lightboxEl.classList.remove("active");
+            document.body.style.overflow = "";
+        }
+
+        function updateLightboxContent() {
+            const item = ARTWORKS[currentIndex];
+            lightboxImg.style.opacity = "0.4";
+            lightboxImg.src = item.full;
+            lightboxCounter.textContent = `${String(currentIndex + 1).padStart(2, '0')} / ${String(ARTWORKS.length).padStart(2, '0')}`;
+            lightboxCaption.textContent = `${item.title} — ${item.subtitle}`;
+            
+            lightboxImg.onload = () => {
+                lightboxImg.style.opacity = "1";
+            };
+        }
+
+        function showNext() {
+            currentIndex = (currentIndex + 1) % ARTWORKS.length;
+            updateLightboxContent();
+        }
+
+        function showPrev() {
+            currentIndex = (currentIndex - 1 + ARTWORKS.length) % ARTWORKS.length;
+            updateLightboxContent();
+        }
+
+        // Listeners
+        closeBtn.addEventListener("click", closeLightbox);
+        nextBtn.addEventListener("click", (e) => { e.stopPropagation(); showNext(); });
+        prevBtn.addEventListener("click", (e) => { e.stopPropagation(); showPrev(); });
+
+        lightboxEl.addEventListener("click", (e) => {
+            if (e.target === lightboxEl || e.target.classList.contains("lightbox-body")) {
+                closeLightbox();
+            }
+        });
+
+        // Keyboard Controls
+        window.addEventListener("keydown", (e) => {
+            if (!lightboxEl.classList.contains("active")) return;
+
+            if (e.key === "Escape") closeLightbox();
+            if (e.key === "ArrowRight") showNext();
+            if (e.key === "ArrowLeft") showPrev();
+        });
+
+        // Touch Swipe Gesture for Mobile Lightbox
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        lightboxEl.addEventListener("touchstart", (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        lightboxEl.addEventListener("touchend", (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }, { passive: true });
+
+        function handleSwipe() {
+            const diff = touchEndX - touchStartX;
+            if (Math.abs(diff) > 50) {
+                if (diff < 0) showNext();
+                else showPrev();
+            }
+        }
+    </script>
+</body>
+
+</html>
