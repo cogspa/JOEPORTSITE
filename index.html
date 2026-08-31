@@ -294,6 +294,18 @@
             animation: scrollGallery 30s linear infinite;
         }
 
+        .gallery-track:hover {
+            animation-play-state: paused;
+        }
+
+        #fine-art-section .gallery-track {
+            animation-duration: 45s;
+        }
+
+        #character-design-section .gallery-track {
+            animation-duration: 70s; /* Reduced speed by more than half for smooth, comfortable viewing */
+        }
+
         .gallery-track img {
             height: clamp(260px, 42vw, 600px);
             width: auto;
