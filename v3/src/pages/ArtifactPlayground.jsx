@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Play, Code, Check, Filter, Link as LinkIcon, Share2, Download, ExternalLink } from "lucide-react";
 
-// Native React imports for all 18 Artifact Components
+// Native React imports for all 19 Artifact Components
 import BrushFoundryII from "../artifacts/BrushFoundryII.jsx";
 import BlockOutProcess from "../artifacts/BlockOutProcess.jsx";
 import BlockOutStudy from "../artifacts/BlockOutStudy.jsx";
@@ -20,6 +20,7 @@ import BrushMaker from "../artifacts/brush-maker.jsx";
 import ValueStudiesCarousel from "../artifacts/ValueStudiesCarousel.jsx";
 import MogrtDgrGenerator from "../artifacts/MogrtDgrGenerator.jsx";
 import MirrorLab from "../artifacts/MirrorLab.jsx";
+import GlyphTable from "../artifacts/glyph-table/GlyphTable.jsx";
 import AsciiRainStudio from "../artifacts/AsciiRainStudio.jsx";
 import ChromeGooMirror from "../artifacts/ChromeGooMirror.jsx";
 
@@ -42,6 +43,7 @@ import brushMakerSource from "../artifacts/brush-maker.jsx?raw";
 import valueStudiesSource from "../artifacts/ValueStudiesCarousel.jsx?raw";
 import mogrtDgrSource from "../artifacts/MogrtDgrGenerator.jsx?raw";
 import mirrorLabSource from "../artifacts/MirrorLab.jsx?raw";
+import glyphTableSource from "../artifacts/glyph-table/GlyphTable.jsx?raw";
 import asciiRainStudioSource from "../artifacts/AsciiRainStudio.jsx?raw";
 import chromeGooMirrorSource from "../artifacts/ChromeGooMirror.jsx?raw";
 
@@ -205,6 +207,16 @@ const ARTIFACT_ITEMS = [
     desc: "Universal vertical-symmetry Notan painter and auto silhouette generator with PNG & Photoshop .ABR brush tip export.",
     Component: MirrorLab,
     source: mirrorLabSource,
+  },
+  {
+    id: "glyph-table",
+    title: "Glyph Table Type Studio",
+    filename: "GlyphTable.jsx",
+    category: "procedural",
+    categoryLabel: "Procedural Engines",
+    desc: "Interactive type design studio & vector font compiler. Draw freehand glyphs with typographic metrics (ascender, cap, x-height, baseline, descender), customize nib dynamics & advance spacing, and compile installable TrueType (.ttf) fonts in the browser.",
+    Component: GlyphTable,
+    source: glyphTableSource,
   },
 ];
 

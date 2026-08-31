@@ -1,0 +1,11 @@
+{
+  "name": "glyph-table",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": { "build": "node build.mjs" },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
