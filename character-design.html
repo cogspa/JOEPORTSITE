@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fine Art Gallery — Joe Micallef</title>
+    <title>Character Design Gallery — Joe Micallef</title>
     <link rel="icon" type="image/png" href="images/COGSPA.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -231,7 +231,7 @@
         .gallery-card-overlay {
             position: absolute;
             inset: 0;
-            background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 60%);
+            background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 60%);
             opacity: 0;
             transition: opacity 0.3s ease;
             display: flex;
@@ -400,8 +400,8 @@
             <a href="index.html#demo-reel">REEL</a>
             <a href="index.html#design">DESIGN (PRINT)</a>
             <a href="print-gallery.html">PRINT GALLERY</a>
-            <a href="fine-art.html" class="active">FINE ART</a>
-            <a href="character-design.html">CHARACTER DESIGN</a>
+            <a href="fine-art.html">FINE ART</a>
+            <a href="character-design.html" class="active">CHARACTER DESIGN</a>
             <a href="index.html#case-studies">CASE STUDIES</a>
             <a href="videography.html">VIDEOGRAPHY</a>
             <a href="animation.html">ANIMATION</a>
@@ -421,16 +421,16 @@
 
             <div class="header-meta">
                 <div>
-                    <h2 class="page-title">Fine Art Gallery</h2>
+                    <h2 class="page-title">Character Design Gallery</h2>
                 </div>
                 <p class="page-desc">
-                    A curated collection of original fine art pieces, studio drawings, traditional media studies, and figurative works. Click any image to view in high resolution.
+                    A curated collection of original creature concepts, monster studies, character illustrations, and stylized figurative works. Click any image to view in high resolution.
                 </p>
             </div>
 
             <!-- Masonry Gallery Columns -->
-            <div class="gallery-columns" id="fine-art-grid">
-                <!-- Cards generated dynamically or styled inline -->
+            <div class="gallery-columns" id="character-grid">
+                <!-- Cards generated dynamically -->
             </div>
         </main>
     </div>
@@ -438,140 +438,254 @@
     <!-- Lightbox Modal -->
     <div class="lightbox-modal" id="lightbox">
         <div class="lightbox-header">
-            <div class="lightbox-counter" id="lightbox-counter">01 / 19</div>
+            <div class="lightbox-counter" id="lightbox-counter">01 / 38</div>
             <button class="lightbox-close-btn" id="lightbox-close" aria-label="Close modal">&times;</button>
         </div>
 
         <div class="lightbox-body">
             <button class="lightbox-nav-btn lightbox-prev" id="lightbox-prev" aria-label="Previous image">&#8592;</button>
-            <img src="" alt="Fine Art Image" class="lightbox-image" id="lightbox-img">
+            <img src="" alt="Character Design Image" class="lightbox-image" id="lightbox-img">
             <button class="lightbox-nav-btn lightbox-next" id="lightbox-next" aria-label="Next image">&#8594;</button>
         </div>
 
-        <div class="lightbox-caption" id="lightbox-caption">Fine Art Study</div>
+        <div class="lightbox-caption" id="lightbox-caption">Character Concept</div>
     </div>
 
     <script>
         const ARTWORKS = [
             {
-                thumb: "artgallery/thumbs/IMG_4068.jpeg",
-                full: "artgallery/IMG_4068.jpeg",
-                title: "Fine Art Study I",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_160929701_randome creatures.jpg",
+                full: "character_design/deviantart_160929701_randome%20creatures.jpg",
+                title: "Random Creatures",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4069.jpeg",
-                full: "artgallery/IMG_4069.jpeg",
-                title: "Fine Art Study II",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_164100790_weirdness.jpg",
+                full: "character_design/deviantart_164100790_weirdness.jpg",
+                title: "Weirdness",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4071 2.jpeg",
-                full: "artgallery/IMG_4071%202.jpeg",
-                title: "Fine Art Study III",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_164100879_cowboy.jpg",
+                full: "character_design/deviantart_164100879_cowboy.jpg",
+                title: "Cowboy",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4072.jpeg",
-                full: "artgallery/IMG_4072.jpeg",
-                title: "Fine Art Study IV",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_194520830_Mer Police Man.jpg",
+                full: "character_design/deviantart_194520830_Mer%20Police%20Man.jpg",
+                title: "Mer Police Man",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4073.jpeg",
-                full: "artgallery/IMG_4073.jpeg",
-                title: "Fine Art Study V",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_194522384_The Apple Beast.jpg",
+                full: "character_design/deviantart_194522384_The%20Apple%20Beast.jpg",
+                title: "The Apple Beast",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4074.jpeg",
-                full: "artgallery/IMG_4074.jpeg",
-                title: "Fine Art Study VI",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_194584994_Ganesh inhales the Cloud Amazo.jpg",
+                full: "character_design/deviantart_194584994_Ganesh%20inhales%20the%20Cloud%20Amazo.jpg",
+                title: "Ganesh Inhales the Cloud Amazo",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4075.jpeg",
-                full: "artgallery/IMG_4075.jpeg",
-                title: "Fine Art Study VII",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_194585534_Toothpaste's Revenge.jpg",
+                full: "character_design/deviantart_194585534_Toothpaste%27s%20Revenge.jpg",
+                title: "Toothpaste's Revenge",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4076.jpeg",
-                full: "artgallery/IMG_4076.jpeg",
-                title: "Fine Art Study VIII",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_194592326_TV Mush Monster.jpg",
+                full: "character_design/deviantart_194592326_TV%20Mush%20Monster.jpg",
+                title: "TV Mush Monster",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4077.jpeg",
-                full: "artgallery/IMG_4077.jpeg",
-                title: "Fine Art Study IX",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_194598117_Jimmy.jpg",
+                full: "character_design/deviantart_194598117_Jimmy.jpg",
+                title: "Jimmy",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4078.jpeg",
-                full: "artgallery/IMG_4078.jpeg",
-                title: "Fine Art Study X",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_194605097_The Evil Doctor Pear.jpg",
+                full: "character_design/deviantart_194605097_The%20Evil%20Doctor%20Pear.jpg",
+                title: "The Evil Doctor Pear",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4102.jpeg",
-                full: "artgallery/IMG_4102.jpeg",
-                title: "Fine Art Study XI",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_194656153_The Turtle Man.jpg",
+                full: "character_design/deviantart_194656153_The%20Turtle%20Man.jpg",
+                title: "The Turtle Man",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4103.jpeg",
-                full: "artgallery/IMG_4103.jpeg",
-                title: "Fine Art Study XII",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_194662380_Armadillo Six-shooter.jpg",
+                full: "character_design/deviantart_194662380_Armadillo%20Six-shooter.jpg",
+                title: "Armadillo Six-Shooter",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4104.jpeg",
-                full: "artgallery/IMG_4104.jpeg",
-                title: "Fine Art Study XIII",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_194700284_Lorna Goes Shopping.jpg",
+                full: "character_design/deviantart_194700284_Lorna%20Goes%20Shopping.jpg",
+                title: "Lorna Goes Shopping",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4105.jpeg",
-                full: "artgallery/IMG_4105.jpeg",
-                title: "Fine Art Study XIV",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_194700383_nargle zump wump.jpg",
+                full: "character_design/deviantart_194700383_nargle%20zump%20wump.jpg",
+                title: "Nargle Zump Wump",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4106.jpeg",
-                full: "artgallery/IMG_4106.jpeg",
-                title: "Fine Art Study XV",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_194700541_Elongated Demon.jpg",
+                full: "character_design/deviantart_194700541_Elongated%20Demon.jpg",
+                title: "Elongated Demon",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4107.jpeg",
-                full: "artgallery/IMG_4107.jpeg",
-                title: "Fine Art Study XVI",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_194718808_Bride of Hacherstein.jpg",
+                full: "character_design/deviantart_194718808_Bride%20of%20Hacherstein.jpg",
+                title: "Bride of Hacherstein",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4108.jpeg",
-                full: "artgallery/IMG_4108.jpeg",
-                title: "Fine Art Study XVII",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_194719318_Sally and her Flying Walrus.jpg",
+                full: "character_design/deviantart_194719318_Sally%20and%20her%20Flying%20Walrus.jpg",
+                title: "Sally and Her Flying Walrus",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4110.jpeg",
-                full: "artgallery/IMG_4110.jpeg",
-                title: "Fine Art Study XVIII",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_195102830_Spudman.jpg",
+                full: "character_design/deviantart_195102830_Spudman.jpg",
+                title: "Spudman",
+                subtitle: "Character Concept"
             },
             {
-                thumb: "artgallery/thumbs/IMG_4113.jpeg",
-                full: "artgallery/IMG_4113.jpeg",
-                title: "Fine Art Study XIX",
-                subtitle: "Studio Original"
+                thumb: "character_design/thumbs/deviantart_196341217_Corn Flakes the Barbarian.jpg",
+                full: "character_design/deviantart_196341217_Corn%20Flakes%20the%20Barbarian.jpg",
+                title: "Corn Flakes the Barbarian",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_196770259_Meditating Monster.jpg",
+                full: "character_design/deviantart_196770259_Meditating%20Monster.jpg",
+                title: "Meditating Monster",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_198393075_Zoo Strikes Back.jpg",
+                full: "character_design/deviantart_198393075_Zoo%20Strikes%20Back.jpg",
+                title: "Zoo Strikes Back",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_198676575_The Noid.jpg",
+                full: "character_design/deviantart_198676575_The%20Noid.jpg",
+                title: "The Noid",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_199334876_Alien Easter Bunny.jpg",
+                full: "character_design/deviantart_199334876_Alien%20Easter%20Bunny.jpg",
+                title: "Alien Easter Bunny",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_199443615_Mr. Nicapoo.jpg",
+                full: "character_design/deviantart_199443615_Mr.%20Nicapoo.jpg",
+                title: "Mr. Nicapoo",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_199533242_Pepsi Loper.jpg",
+                full: "character_design/deviantart_199533242_Pepsi%20Loper.jpg",
+                title: "Pepsi Loper",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_199655121_No More Pie.jpg",
+                full: "character_design/deviantart_199655121_No%20More%20Pie.jpg",
+                title: "No More Pie",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_199780621_LOORG the Necroraptor.jpg",
+                full: "character_design/deviantart_199780621_LOORG%20the%20Necroraptor.jpg",
+                title: "LOORG the Necroraptor",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_199933937_Wild Turnip Rodeo.jpg",
+                full: "character_design/deviantart_199933937_Wild%20Turnip%20Rodeo.jpg",
+                title: "Wild Turnip Rodeo",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_201151075_Bear and Bull.jpg",
+                full: "character_design/deviantart_201151075_Bear%20and%20Bull.jpg",
+                title: "Bear and Bull",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_201663069_Cayenne Man on Bull Fennel.jpg",
+                full: "character_design/deviantart_201663069_Cayenne%20Man%20on%20Bull%20Fennel.jpg",
+                title: "Cayenne Man on Bull Fennel",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_201784325_cartoony character logos.jpg",
+                full: "character_design/deviantart_201784325_cartoony%20character%20logos.jpg",
+                title: "Cartoony Character Logos",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_201905809_Puckered Anise.jpg",
+                full: "character_design/deviantart_201905809_Puckered%20Anise.jpg",
+                title: "Puckered Anise",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_208311727_Daily Doughnut Monster Number.jpg",
+                full: "character_design/deviantart_208311727_Daily%20Doughnut%20Monster%20Number.jpg",
+                title: "Daily Doughnut Monster",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_208538033_Fish Man Head.jpg",
+                full: "character_design/deviantart_208538033_Fish%20Man%20Head.jpg",
+                title: "Fish Man Head",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_208957747_Skard Katty.jpg",
+                full: "character_design/deviantart_208957747_Skard%20Katty.jpg",
+                title: "Skard Katty",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_209329278_Robo HEad.jpg",
+                full: "character_design/deviantart_209329278_Robo%20HEad.jpg",
+                title: "Robo Head",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_214261968_Ballon Norf.jpg",
+                full: "character_design/deviantart_214261968_Ballon%20Norf.jpg",
+                title: "Balloon Norf",
+                subtitle: "Character Concept"
+            },
+            {
+                thumb: "character_design/thumbs/deviantart_214262101_Angry Dad number 5.jpg",
+                full: "character_design/deviantart_214262101_Angry%20Dad%20number%205.jpg",
+                title: "Angry Dad",
+                subtitle: "Character Concept"
             }
         ];
 
         let currentIndex = 0;
 
-        const gridEl = document.getElementById("fine-art-grid");
+        const gridEl = document.getElementById("character-grid");
         const lightboxEl = document.getElementById("lightbox");
         const lightboxImg = document.getElementById("lightbox-img");
         const lightboxCounter = document.getElementById("lightbox-counter");
