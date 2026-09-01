@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COGSPA — A 35-Year Timeline | Joe Micallef</title>
+<meta name="description" content="From a TI-99/4A and a D&D box set to Creative Operations Group — Systems, Pipelines & Automation. The interactive history of COGSPA.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FFFFFF;
+  --ink:#111111;
+  --chip:#E8F1F4;          /* pale blue card chips, from Artifact Playground */
+  --line:#DDDDDD;
+  --meta:#666;
+  --red:#E3311D;           /* JOE MICALLEF chip red */
+  --orange:#F04E23;        /* badge / ops */
+  --teal:#5F93A8;          /* ledger colors */
+  --pink:#CE7DA5;
+  --yellow:#EFC337;
+  --stone:#A79E90;
+  --space:#0B0512;
+  --nebula:#C13B87;
+  --nebula-soft:#E7B7D3;
+  --maxw:1180px;
+  --radius:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+body{
+  font-family:'Archivo',system-ui,sans-serif;
+  background:var(--paper);color:var(--ink);
+  line-height:1.55;font-size:17px;
+}
+a{color:inherit}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--orange);outline-offset:3px}
+img{max-width:100%;display:block}
+.mono{font-family:'Space Mono',monospace}
+
+/* ---------- YEAR HUD ---------- */
+#yearHud{
+  position:fixed;left:18px;bottom:14px;z-index:60;
+  font-family:'Space Mono',monospace;font-weight:700;
+  font-size:clamp(32px,4.6vw,52px);letter-spacing:-.03em;
+  color:#fff;mix-blend-mode:difference;
+  pointer-events:none;opacity:0;transition:opacity .4s;
+}
+#yearHud.on{opacity:1}
+#yearHud small{display:block;font-size:10px;font-weight:400;letter-spacing:.28em;text-transform:uppercase}
+
+/* ---------- UTILITY BAR (playground style) ---------- */
+.utilbar{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:14px 20px;background:#fff;border-bottom:1px solid var(--line);
+}
+.utilbar .back{
+  font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.06em;
+  background:var(--ink);color:#fff;text-decoration:none;
+  padding:8px 14px;border-radius:8px;
+}
+.utilbar .back:hover{background:#333}
+.utilbar .crumb{font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--meta)}
+.utilbar .badge{width:34px;height:34px;border-radius:50%;background:var(--orange);color:#111;display:grid;place-items:center;font-weight:900;font-style:italic;font-size:16px;margin-left:auto}
+
+.blackbar{
+  background:#000;color:#fff;display:flex;align-items:center;gap:14px;
+  padding:10px 20px;flex-wrap:wrap;
+}
+.blackbar .name{
+  font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.1em;
+  background:var(--red);padding:4px 10px;
+}
+.blackbar .sub{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#bbb}
+.blackbar .count{margin-left:auto;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.14em;color:#bbb}
+
+/* ---------- ERA LEDGER (the signature, from Artifact Playground) ---------- */
+.ledger{
+  position:sticky;top:0;z-index:50;display:flex;background:#000;
+  border-bottom:1px solid #000;
+}
+.ledger a{
+  --seg:#888;
+  flex:var(--w,1);min-width:56px;background:var(--seg);color:#111;text-decoration:none;
+  text-align:center;padding:10px 4px 9px;position:relative;
+  transition:filter .15s;
+}
+.ledger a:hover{filter:brightness(1.08)}
+.ledger a .n{display:block;font-weight:900;font-size:clamp(14px,1.8vw,20px);line-height:1.1}
+.ledger a .l{display:block;font-family:'Space Mono',monospace;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ledger a.dark{color:#fff}
+.ledger a.active::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:#000}
+.ledger a.dark.active::after{background:#fff}
+
+/* ---------- HERO (portfolio style, white) ---------- */
+.hero{max-width:var(--maxw);margin:0 auto;padding:64px 24px 30px}
+.hero h1{
+  font-weight:800;font-stretch:105%;text-transform:uppercase;
+  font-size:clamp(44px,7.6vw,96px);line-height:.98;letter-spacing:-.02em;
+}
+.hero .roles{
+  font-weight:600;text-transform:uppercase;letter-spacing:.06em;
+  font-size:clamp(18px,2.6vw,30px);margin:8px 0 34px;
+}
+.hero .roles span{color:var(--meta)}
+.hero-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:36px;align-items:start}
+.hero-grid p{margin-bottom:14px;max-width:620px}
+.hero-grid p b{font-weight:800}
+.markcard{
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  box-shadow:0 6px 22px rgba(0,0,0,.08);background:var(--space);
+}
+.markcard figcaption{
+  font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:#bbb;background:#000;padding:10px 14px;
+}
+.strands{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.strands span{
+  font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  display:flex;align-items:center;gap:8px;background:var(--chip);padding:7px 13px;border-radius:99px;
+}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.dot.idea{background:var(--nebula)}
+.dot.ops{background:var(--orange)}
+@media(max-width:860px){.hero-grid{grid-template-columns:1fr}}
+
+/* ---------- TIMELINE BODY ---------- */
+main{max-width:var(--maxw);margin:0 auto;padding:0 24px 40px}
+section.era{padding:70px 0 26px;border-top:1px solid var(--line)}
+.era-head{display:flex;align-items:baseline;gap:20px;flex-wrap:wrap;margin-bottom:6px}
+.era-head .range{font-family:'Space Mono',monospace;font-weight:700;font-size:12px;letter-spacing:.2em;color:var(--meta)}
+.era-head .swatch{width:16px;height:16px;border-radius:4px;align-self:center}
+.era h2{
+  font-weight:800;font-stretch:105%;text-transform:uppercase;
+  font-size:clamp(34px,5.8vw,64px);line-height:.98;letter-spacing:-.015em;
+}
+.era .era-sub{max-width:660px;color:var(--meta);margin:14px 0 8px;font-size:16px}
+
+/* spine + cards */
+.entries{position:relative;margin-top:30px;padding-left:32px}
+.entries::before{content:"";position:absolute;left:7px;top:10px;bottom:10px;width:2px;background:var(--ink)}
+.entry{
+  position:relative;margin:0 0 26px;max-width:780px;
+  background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+  padding:20px 22px 18px;box-shadow:0 4px 16px rgba(0,0,0,.06);
+  opacity:0;transform:translateY(16px);transition:opacity .5s ease,transform .5s ease;
+}
+.entry.vis{opacity:1;transform:none}
+@media (prefers-reduced-motion: reduce){.entry{opacity:1;transform:none}}
+.entry::before{
+  content:"";position:absolute;left:-31px;top:26px;width:13px;height:13px;border-radius:50%;
+  background:var(--nebula);border:3px solid #fff;box-shadow:0 0 0 2px var(--ink);
+}
+.entry.ops::before{background:var(--orange)}
+.entry .chips{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.entry .chip{
+  font-family:'Space Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  background:var(--chip);padding:5px 10px;border-radius:6px;
+}
+.entry .chip.strand{color:#fff}
+.entry:not(.ops) .chip.strand{background:var(--nebula)}
+.entry.ops .chip.strand{background:var(--orange)}
+.entry h3{font-weight:800;font-size:clamp(19px,2.4vw,24px);line-height:1.15;letter-spacing:-.01em;margin-bottom:8px}
+.entry p{margin-bottom:8px;font-size:16px}
+.entry p:last-child{margin-bottom:0}
+.entry a{text-decoration-thickness:2px;text-underline-offset:3px}
+.entry a:hover{color:var(--orange)}
+.entry a.ref{
+  display:inline-block;font-family:'Space Mono',monospace;font-size:12px;font-weight:700;
+  text-decoration:none;background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;
+  margin:8px 8px 2px 0;transition:background .15s;
+}
+.entry a.ref:hover{background:#333;color:#fff}
+.entry a.jump{font-family:'Space Mono',monospace;font-size:12px}
+figure.artifact{margin:14px 0 6px;background:#FAF8F3;border:1px solid var(--line);border-radius:10px;padding:12px}
+figure.artifact img{border:1px solid var(--line);border-radius:6px}
+figure.artifact figcaption{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.04em;margin-top:10px;color:#555}
+.pathline{
+  font-family:'Space Mono',monospace;font-size:12.5px;line-height:2;
+  border:1px solid var(--line);border-radius:10px;background:var(--chip);
+  padding:12px 16px;margin-top:10px;overflow-x:auto;white-space:nowrap;
+}
+.pathline b{color:var(--orange)}
+
+/* literature panel */
+details.lit{border:1px solid var(--line);border-radius:var(--radius);background:#fff;margin-top:26px;max-width:840px;box-shadow:0 4px 16px rgba(0,0,0,.06)}
+details.lit summary{
+  cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:14px;
+  padding:16px 20px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;font-size:15px;
+}
+details.lit summary::-webkit-details-marker{display:none}
+details.lit summary .mono{font-weight:400;font-size:11px;letter-spacing:.18em;color:var(--meta)}
+details.lit summary::after{content:"+";font-family:'Space Mono',monospace;font-size:22px;font-weight:700}
+details.lit[open] summary::after{content:"–"}
+details.lit .lit-body{padding:4px 20px 20px;border-top:1px solid var(--line)}
+.lit ol{list-style:none}
+.lit li{padding:12px 0;border-bottom:1px dashed var(--line);display:grid;grid-template-columns:60px 1fr;gap:16px}
+.lit li:last-child{border-bottom:none}
+.lit li .y{font-family:'Space Mono',monospace;font-weight:700}
+.lit li em{font-style:italic}
+.lit .note{margin-top:14px;padding:12px 14px;background:var(--chip);border-left:4px solid var(--nebula);border-radius:0 8px 8px 0;font-size:15px}
+
+/* ---------- DARK INTERLUDE ---------- */
+.interlude{
+  background:var(--space) url('assets/cogspa-nebula.png') center 30%/cover no-repeat;
+  position:relative;color:#fff;text-align:center;padding:120px 24px;
+}
+.interlude::before{content:"";position:absolute;inset:0;background:rgba(11,5,18,.72)}
+.interlude>*{position:relative}
+.interlude .kicker{font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.34em;text-transform:uppercase;color:var(--nebula-soft);margin-bottom:26px}
+.interlude .morph{font-weight:800;font-stretch:110%;text-transform:uppercase;line-height:1.02;letter-spacing:-.01em;font-size:clamp(30px,6vw,64px)}
+.interlude .morph .arrow{display:block;font-family:'Space Mono',monospace;font-weight:400;font-size:clamp(18px,3vw,28px);color:var(--nebula-soft);padding:14px 0}
+.interlude p{max-width:560px;margin:26px auto 0;color:#DCD3E6}
+
+/* ---------- FINALE ---------- */
+.finale{padding:80px 0 60px}
+.finale .duo{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:34px}
+.finale .duo>div{padding:32px 28px;border-radius:var(--radius);box-shadow:0 6px 22px rgba(0,0,0,.10)}
+.finale .duo .idea-side{background:var(--space);color:#fff}
+.finale .duo .ops-side{background:var(--orange);color:#fff}
+.finale .duo h3{font-weight:800;text-transform:uppercase;font-size:clamp(21px,2.8vw,30px);line-height:1.06;margin-bottom:12px}
+.finale .duo .lbl{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;opacity:.75;margin-bottom:16px}
+.finale .duo p{font-size:16px}
+.finale .equals{font-family:'Space Mono',monospace;text-align:center;font-size:12px;letter-spacing:.24em;text-transform:uppercase;margin-top:24px;color:var(--meta)}
+@media(max-width:720px){.finale .duo{grid-template-columns:1fr}}
+
+/* ---------- FOOTER ---------- */
+footer{border-top:1px solid var(--line);padding:30px 24px 90px;max-width:var(--maxw);margin:0 auto;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center}
+footer .who{font-weight:800;text-transform:uppercase}
+footer .mono{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--meta)}
+footer a.back{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;background:var(--ink);color:#fff;text-decoration:none;padding:9px 16px;border-radius:8px}
+@media(max-width:640px){
+  .entries{padding-left:24px}
+  .entry::before{left:-23px}
+  #yearHud{font-size:28px}
+}
+</style>
+</head>
+<body>
+
+<div id="yearHud" aria-hidden="true"><small>You are in</small><span id="yearNum">1972</span></div>
+
+<!-- ============ UTILITY BARS ============ -->
+<div class="utilbar">
+  <a class="back" href="../index.html">← BACK TO HOME</a>
+  <span class="crumb">· Interactive Timeline Artifact</span>
+  <span class="badge" aria-hidden="true">S</span>
+</div>
+<div class="blackbar">
+  <span class="name">JOE MICALLEF</span>
+  <span class="sub">· COGSPA — The 35-Year Story of Cognitive Space</span>
+  <span class="count">1972 → 2026</span>
+</div>
+
+<!-- ============ ERA LEDGER ============ -->
+<nav class="ledger" aria-label="Timeline eras — click a segment to jump">
+  <a href="#era-origins"   style="--seg:var(--stone);--w:2"><span class="n">1972</span><span class="l">Origins</span></a>
+  <a href="#era-signals"   style="--seg:var(--teal);--w:3"><span class="n">1984</span><span class="l">Signals</span></a>
+  <a href="#era-breakfast" style="--seg:var(--pink);--w:3"><span class="n">1990</span><span class="l">Breakfast Table</span></a>
+  <a href="#era-name" class="dark" style="--seg:#111;--w:1.4"><span class="n">→</span><span class="l">The Name</span></a>
+  <a href="#era-artcode"   style="--seg:var(--yellow);--w:2.5"><span class="n">1991</span><span class="l">Art + Code</span></a>
+  <a href="#era-usc"       style="--seg:var(--orange);--w:2.5"><span class="n">2005</span><span class="l">USC &amp; Systems</span></a>
+  <a href="#era-physical"  style="--seg:var(--teal);--w:2.5"><span class="n">2009</span><span class="l">Digital→Physical</span></a>
+  <a href="#era-ai"        style="--seg:var(--pink);--w:2.5"><span class="n">2020</span><span class="l">New Cog. Space</span></a>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero" data-year="1972">
+  <h1>COGSPA</h1>
+  <p class="roles">A 35-Year Timeline <span>· Cognitive Space → Systems, Pipelines &amp; Automation</span></p>
+  <div class="hero-grid">
+    <div>
+      <p>Many people who know me or have seen the COGSPA handle over the years have wondered what it means. The short version: it began as <b>"Cognitive Space"</b> — a name I adopted more than 35 years ago for the nexus of imagination, art, computation, and emerging technology.</p>
+      <p>This timeline traces that idea from a TI-99/4A and a Dungeons &amp; Dragons box set, through a 1990 breakfast table in Michigan, commercial VR arcades, USC, supercomputer CGI, 3D printing, teaching, and AI — to what COGSPA means in 2026.</p>
+      <div class="strands">
+        <span><i class="dot idea"></i>Cognitive Space — the idea</span>
+        <span><i class="dot ops"></i>Operations — how it gets built</span>
+      </div>
+    </div>
+    <figure class="markcard">
+      <img src="assets/cogspa-nebula.png" alt="COGSPA wordmark over a magenta nebula">
+      <figcaption>The mark · Cognitive Space, est. c.1990</figcaption>
+    </figure>
+  </div>
+</header>
+
+<main>
+
+<!-- ============ ERA 00 ============ -->
+<section class="era" id="era-origins">
+  <div class="era-head"><span class="swatch" style="background:var(--stone)"></span><span class="range">1972 — 1983</span><h2>Origins</h2></div>
+  <p class="era-sub">Before Cognitive Space had a name, it had a kid in Michigan with a pencil, a keyboard, and a box of dice.</p>
+
+  <div class="entries">
+    <article class="entry" data-year="1972">
+      <div class="chips"><span class="chip">Nov 15, 1972</span><span class="chip strand">Idea</span></div>
+      <h3>Joe Micallef is born</h3>
+      <p>The endless drawing starts early — the first territory of imagination, long before there's a computer to put it in.</p>
+    </article>
+
+    <article class="entry ops" data-year="1981">
+      <div class="chips"><span class="chip">1981</span><span class="chip strand">Ops</span></div>
+      <h3>First computer: the Texas Instruments TI-99/4A</h3>
+      <p>Purchased when TI's home computer arrives, and the coding begins — in BASIC. The first taste of telling a machine what to build, and the start of a throughline that runs through ActionScript, Python, and full-stack AI development.</p>
+    </article>
+
+    <article class="entry" data-year="1981">
+      <div class="chips"><span class="chip">1981</span><span class="chip strand">Idea</span></div>
+      <h3>First Dungeons &amp; Dragons box set — world building begins</h3>
+      <p>Bought around the same moment as the TI-99/4A. D&amp;D (and later Gamma World) turns drawing into world building: rules, maps, systems that generate stories. Art and computation start growing side by side — they'll never separate again.</p>
+    </article>
+  </div>
+</section>
+
+<!-- ============ ERA 01 ============ -->
+<section class="era" id="era-signals">
+  <div class="era-head"><span class="swatch" style="background:var(--teal)"></span><span class="range">1984 — FEB 1990</span><h2>Signals</h2></div>
+  <p class="era-sub">The pieces arrive: desktop publishing, commercial CGI, and computer animation becoming an art form.</p>
+
+  <div class="entries">
+    <article class="entry ops" data-year="1984">
+      <div class="chips"><span class="chip">1984</span><span class="chip strand">Ops</span></div>
+      <h3>The Last Starfighter renders 25 minutes on a Cray X-MP</h3>
+      <p>Digital Productions makes one of the landmark leaps from physical models to extensive CGI, using one of the world's most powerful computers. A film I'd meet again — its Technical Manager, Ken Dozier, becomes my mentor in <a class="jump" href="#e-dozier">2008 ↓</a>.</p>
+    </article>
+
+    <article class="entry ops" data-year="1985">
+      <div class="chips"><span class="chip">1984 — 1985</span><span class="chip strand">Ops</span></div>
+      <h3>PostScript &amp; the LaserWriter start the desktop publishing revolution</h3>
+      <p>Adobe puts typesetting, prepress, and production directly on a designer's desk — the shift that will later shape my college decision.</p>
+      <a class="ref" href="https://www.adobe.com/qa_en/products/postscript.html" target="_blank" rel="noopener">▷ Adobe · PostScript History</a>
+    </article>
+
+    <article class="entry ops" data-year="1987">
+      <div class="chips"><span class="chip">Mar 19, 1987</span><span class="chip strand">Ops</span></div>
+      <h3>Adobe Illustrator ships</h3>
+      <a class="ref" href="https://blog.adobe.com/en/publish/2015/03/23/adobe-explains-it-all-illustrator" target="_blank" rel="noopener">▷ Adobe · Illustrator History</a>
+    </article>
+
+    <article class="entry" data-year="1988">
+      <div class="chips"><span class="chip">Aug 1988 — Mar 29, 1989</span><span class="chip strand">Idea</span></div>
+      <h3>Pixar's Tin Toy stuns SIGGRAPH, then wins the Oscar</h3>
+      <p>John Lasseter's short causes a sensation partially finished, premieres at the Ottawa International Animation Festival, and becomes the first entirely computer-animated film to win the Academy Award for Best Animated Short.</p>
+      <a class="ref" href="https://www.pixar.com/our-story" target="_blank" rel="noopener">▷ Pixar · Our Story</a>
+    </article>
+
+    <article class="entry ops" data-year="1990">
+      <div class="chips"><span class="chip">Feb 19, 1990</span><span class="chip strand">Ops</span></div>
+      <h3>Photoshop 1.0 arrives</h3>
+      <p>Typography, illustration, photography, digital imaging — soon motion graphics — converge on a single machine.</p>
+      <a class="ref" href="https://blog.adobe.com/en/publish/2015/02/25/adobe-explains-it-all-photoshop" target="_blank" rel="noopener">▷ Adobe · Photoshop History</a>
+    </article>
+
+    <article class="entry" data-year="1990">
+      <div class="chips"><span class="chip">Feb 9 — 11, 1990</span><span class="chip strand">Idea</span></div>
+      <h3>I see Tin Toy at the Detroit Institute of Arts</h3>
+      <p>At The Second Animation Celebration, I'm enthralled by the possibilities of computer-generated animation. (The first Ren &amp; Stimpy short appears at the same festival — for my zanier side.) Ten days before this screening, Photoshop 1.0 shipped. Mondo 2000 is defining cyberculture. Commercial VR is arriving. Everything converges here.</p>
+    </article>
+  </div>
+</section>
+
+<!-- ============ ERA 02 ============ -->
+<section class="era" id="era-breakfast">
+  <div class="era-head"><span class="swatch" style="background:var(--pink)"></span><span class="range">1990 — 1991</span><h2>The Breakfast Table</h2></div>
+  <p class="era-sub">One morning in 1990, my mom hands me a newspaper article about something called virtual reality. She knew immediately I'd be fascinated. She was right — for 35 years and counting.</p>
+
+  <div class="entries">
+    <article class="entry" data-year="1990">
+      <div class="chips"><span class="chip">1990</span><span class="chip strand">Idea</span></div>
+      <h3>The article from The Detroit News</h3>
+      <p>An AP story on virtual reality, featuring Timothy Leary as an evangelist for the new technology. The detail that stays with me: someday, two people separated by enormous distances might enter a virtual space and play tennis together.</p>
+      <figure class="artifact">
+        <img src="assets/midland-reporter-telegram-1991.png" alt="Scanned newspaper page: 'Scientists study link between computers, senses' — AP story on virtual reality, Midland Reporter-Telegram, April 15, 1991" loading="lazy">
+        <figcaption>ARTIFACT · The AP wire story as it ran in the Midland Reporter-Telegram, April 15, 1991 — details closely matching the article my mom brought to the breakfast table.</figcaption>
+      </figure>
+    </article>
+
+    <article class="entry" data-year="1990">
+      <div class="chips"><span class="chip">1990</span><span class="chip strand">Idea</span></div>
+      <h3>Neuromancer &amp; Mondo 2000 from the Borders in Novi</h3>
+      <p>Cyberspace, VR, digital culture, hackers, artists, and thinkers like Jaron Lanier — the countercultural futurism that frames what the technology could mean, layered onto the imagination already built through drawing and D&amp;D world building.</p>
+    </article>
+
+    <article class="entry" data-year="1990">
+      <div class="chips"><span class="chip">Fall 1990</span><span class="chip strand">Idea</span></div>
+      <h3>Timothy Leary speaks at Michigan State</h3>
+      <p>During my one term at MSU, I hear Leary talk about virtual reality and its emerging possibilities in person.</p>
+    </article>
+
+    <article class="entry ops" data-year="1990">
+      <div class="chips"><span class="chip">1990</span><span class="chip strand">Ops</span></div>
+      <h3>W Industries publicly demonstrates Virtuality</h3>
+      <p>VR escapes the research lab: headsets, tracked controllers, multiplayer computer-generated worlds you can step inside. Commercial arcade systems follow in 1991.</p>
+      <a class="ref" href="https://www.comsoc.org/node/19921" target="_blank" rel="noopener">▷ IEEE ComSoc · Virtuality History</a>
+    </article>
+
+    <article class="entry" data-year="1991">
+      <div class="chips"><span class="chip">1991</span><span class="chip strand">Idea</span></div>
+      <h3>Dactyl Nightmare at Industry, Pontiac — with Wayne</h3>
+      <p>A club that lets under-21s in specifically to try the game. I stand in one Virtuality 1000CS station, my friend Wayne in the other. Inside: polygonal avatars on elevated checkered platforms, up to four networked players, and a giant pterodactyl circling overhead, swooping down to carry players away.</p>
+      <p>It wasn't about reproducing reality. It was about imagination — and how important, yet misunderstood, imagination could be. If a computer could construct a world, why should that world be constrained by the physical one?</p>
+    </article>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ DARK INTERLUDE ============ -->
+<section class="interlude" id="era-name" data-year="1991">
+  <p class="kicker">c.1990 — 1991 · The naming</p>
+  <div class="morph">
+    Cognitive Space
+    <span class="arrow">↓ compressed into ↓</span>
+    COGSPA
+  </div>
+  <p>An internal space with seemingly limitless room for exploration, invention, and discovery — something almost analogous to imagination itself. Before social media, before iPhones: the name stuck.</p>
+</section>
+
+<main>
+
+<!-- ============ ERA 03 ============ -->
+<section class="era" id="era-artcode">
+  <div class="era-head"><span class="swatch" style="background:var(--yellow)"></span><span class="range">1991 — 2004</span><h2>Art + Code</h2></div>
+  <p class="era-sub">There's no academic path for what I want to become, so I build one — and discover the boundary between art and code is artificial.</p>
+
+  <div class="entries">
+    <article class="entry" data-year="1991">
+      <div class="chips"><span class="chip">Early 1990s</span><span class="chip strand">Idea</span></div>
+      <h3>Wayne State: Fine Art + Computer Science → graphic design</h3>
+      <p>Computer animation exists, but dedicated programs are rare. Rather than choosing between the two paths, graphic design and emerging digital media become the practical way to combine them. The ultimate goal is still computer animation.</p>
+    </article>
+
+    <article class="entry ops" data-year="1995">
+      <div class="chips"><span class="chip">1995 — 2000</span><span class="chip strand">Ops</span></div>
+      <h3>The software evolves — and I evolve with it</h3>
+      <p>JavaScript appears in 1995. Flash in 1996, growing into a programmable interactive media environment. Maya 1.0 ships in 1998, built for scripting and extension. ActionScript formally arrives with Flash 5 in 2000. Python emerges and heads toward connecting graphics, science, automation, and AI.</p>
+      <div class="pathline">drawing → graphic design → animation → 3D → scripting → interactive media → web development → <b>automation</b></div>
+    </article>
+  </div>
+</section>
+
+<!-- ============ ERA 04 ============ -->
+<section class="era" id="era-usc">
+  <div class="era-head"><span class="swatch" style="background:var(--orange)"></span><span class="range">2005 — 2008</span><h2>USC &amp; Systems</h2></div>
+  <p class="era-sub">Graduate school turns the pursuit into formal study: art, computation, research, cinema, experimentation — and a procedural idea that changes everything after.</p>
+
+  <div class="entries">
+    <article class="entry" data-year="2005">
+      <div class="chips"><span class="chip">2005 — 2006</span><span class="chip strand">Idea</span></div>
+      <h3>USC School of Cinematic Arts — Animation &amp; Digital Arts</h3>
+      <p>I enter graduate study in computer-generated animation; during my time there the division becomes the John C. Hench Division of Animation &amp; Digital Arts. I become an Adobe Scholar and receive an Annenberg Fellowship, opening collaboration with the Viterbi School of Engineering.</p>
+      <a class="ref" href="https://cinema.usc.edu/animation/index.cfm" target="_blank" rel="noopener">▷ USC · Hench Division</a>
+    </article>
+
+    <article class="entry ops" data-year="2006">
+      <div class="chips"><span class="chip">c.2006</span><span class="chip strand">Ops</span></div>
+      <h3>SideFX internship — proceduralism takes hold</h3>
+      <p>With the makers of Houdini, I go deeper into a procedural approach: instead of manually constructing every result, artists build systems that generate them. Build the underlying systems — which in turn can build new systems.</p>
+    </article>
+
+    <article class="entry ops" data-year="2008" id="e-dozier">
+      <div class="chips"><span class="chip">2008</span><span class="chip strand">Ops</span></div>
+      <h3>WESRAC — mentored by Ken Dozier</h3>
+      <p>At USC's Western Research Application Center, I work with someone who participated directly in the CGI history that fascinated me: AFI's credits list Dozier as Technical Manager at Digital Productions on <a class="jump" href="#era-signals">The Last Starfighter ↑</a>, and a 1983 SIGGRAPH program lists him as an executive technical director on Cray-based work. His research pushes physics, cybernetics, parallel processing, early AI, LISP, and information systems into manufacturing and supply chains — and he pushes all of it onto me.</p>
+      <div class="pathline">simulation → manufacturing → visualization → computation → <b>physical production</b></div>
+      <a class="ref" href="https://sites.usc.edu/wesrac/ttc/learning-center/" target="_blank" rel="noopener">▷ USC · WESRAC Archive</a>
+    </article>
+  </div>
+</section>
+
+<!-- ============ ERA 05 ============ -->
+<section class="era" id="era-physical">
+  <div class="era-head"><span class="swatch" style="background:var(--teal)"></span><span class="range">2009 — 2019</span><h2>Digital → Physical</h2></div>
+  <p class="era-sub">Digital geometry becomes physical matter, systems become studios, and studios become curriculum.</p>
+
+  <div class="entries">
+    <article class="entry ops" data-year="2015">
+      <div class="chips"><span class="chip">2015</span><span class="chip strand">Ops</span></div>
+      <h3>Beginning Design for 3D Printing — published by Apress</h3>
+      <p>A 409-page guide to modeling and designing for additive manufacturing, deliberately written for artists, designers, engineers, and makers at once — because that interdisciplinary territory is the whole point.</p>
+      <a class="ref" href="https://link.springer.com/book/10.1007/978-1-4842-0946-2" target="_blank" rel="noopener">▷ Springer · Book Record</a>
+    </article>
+
+    <article class="entry ops" data-year="2016">
+      <div class="chips"><span class="chip">2010s</span><span class="chip strand">Ops</span></div>
+      <h3>Studio director &amp; creative technologist</h3>
+      <p>The focus shifts from producing individual pieces of media to building the production systems that make them.</p>
+    </article>
+
+    <article class="entry" data-year="2018">
+      <div class="chips"><span class="chip">2010s →</span><span class="chip strand">Idea</span></div>
+      <h3>Teaching changes the problem</h3>
+      <p>Digital media education at Pasadena City College, OTIS, and eventually Ryman Arts. The question shifts from <em>"How do I make this?"</em> to <em>"How do I construct a system someone else can understand, reproduce, and build on?"</em> — leading naturally to curriculum, learning systems, documentation, interactive tools, and software.</p>
+    </article>
+  </div>
+</section>
+
+<!-- ============ ERA 06 ============ -->
+<section class="era" id="era-ai">
+  <div class="era-head"><span class="swatch" style="background:var(--pink)"></span><span class="range">2020 — 2026</span><h2>The New Cognitive Space</h2></div>
+  <p class="era-sub">Machine learning returns me to the question VR first posed: what happens when the computer stops being merely a tool for representing ideas — and becomes an environment where ideas themselves can be explored?</p>
+
+  <div class="entries">
+    <article class="entry" data-year="2022">
+      <div class="chips"><span class="chip">2010s — 2020s</span><span class="chip strand">Idea</span></div>
+      <h3>Generative AI reopens the original question</h3>
+      <p>Early experiments with AI image systems and creative sandboxes, then large language models. Modern AI dramatically lowers the barrier between an idea and its functioning implementation — computer science becomes explorable. JavaScript to Python to React to APIs to unfamiliar architectures, at a pace previously impossible for one person.</p>
+    </article>
+
+    <article class="entry ops" data-year="2026">
+      <div class="chips"><span class="chip">2026</span><span class="chip strand">Ops</span></div>
+      <h3>COGSPA acquires a second meaning</h3>
+      <p>AI-assisted development, creative automation, production pipelines, Adobe integrations, 3D systems, generative workflows, enterprise tools, forward-deployed engineering. Not a departure from the path started 35 years ago — its operational form.</p>
+    </article>
+  </div>
+
+  <details class="lit">
+    <summary>The term in the literature <span class="mono">1975 — 1992 · 8 sightings</span></summary>
+    <div class="lit-body">
+      <ol>
+        <li><span class="y">1975</span><span>University of Toronto dissertation: <em>Cognitive Space and Formal Operations</em>.</span></li>
+        <li><span class="y">1979</span><span>NASA-associated dissertation describes a person's "master cognitive space" whose structure changes with context.</span></li>
+        <li><span class="y">1980</span><span>Research on shopping behavior describes a shared cognitive space of how people mentally organize choices.</span></li>
+        <li><span class="y">1987</span><span><em>Journal of Environmental Psychology</em> uses the term for how people mentally organize geographic environments.</span></li>
+        <li><span class="y">1988</span><span>Cognitive linguistics: <em>The Mapping of Elements of Cognitive Space onto Grammatical Relations</em>.</span></li>
+        <li><span class="y">1989</span><span>Cambridge publishes <em>Plea for More Exploration of Cross-Cultural Cognitive Space</em>.</span></li>
+        <li><span class="y">1990</span><span>Stephen Cushing, <em>The Cognitive Space of Air Traffic Control</em> — an abstract mental space controllers use to organize aircraft and decide.</span></li>
+        <li><span class="y">1992</span><span>Michael S. Nilan, <em>Journal of Communication</em>: "Cognitive Space: Using Virtual Reality for Large Information Resource Management Problems."</span></li>
+      </ol>
+      <p class="note">By December 1992, an academic journal was pairing "cognitive space" with virtual reality — the exact junction a teenager in Michigan had named for himself two years earlier.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============ FINALE ============ -->
+<section class="finale" data-year="2026">
+  <div class="era-head"><span class="range">1972 ⟶ 2026</span><h2>One name,<br>two readings</h2></div>
+  <div class="duo">
+    <div class="idea-side">
+      <p class="lbl">The original meaning · c.1990</p>
+      <h3>Cognitive Space</h3>
+      <p>The nexus of imagination, art, computation, and emerging technology. Technology gives us new spaces in which imagination can operate.</p>
+    </div>
+    <div class="ops-side">
+      <p class="lbl">The second meaning · 2026</p>
+      <h3>Creative Operations Group — Systems, Pipelines &amp; Automation</h3>
+      <p>Not a different definition. The operational form of the original one.</p>
+    </div>
+  </div>
+  <p class="equals">Cognitive Space is the idea · COGSPA is how I build it</p>
+</section>
+
+</main>
+
+<footer>
+  <div>
+    <div class="who">Joe Micallef</div>
+    <div class="mono">AI Integrations · Design · VFX</div>
+  </div>
+  <a class="back" href="../index.html">← BACK TO HOME</a>
+</footer>
+
+<script>
+(function(){
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Reveal entries
+  var entries = document.querySelectorAll('.entry');
+  if('IntersectionObserver' in window && !reduced){
+    var io = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('vis'); io.unobserve(e.target);} });
+    },{threshold:.15});
+    entries.forEach(function(el){ io.observe(el); });
+  } else {
+    entries.forEach(function(el){ el.classList.add('vis'); });
+  }
+
+  // Year HUD
+  var hud = document.getElementById('yearHud');
+  var num = document.getElementById('yearNum');
+  var dated = document.querySelectorAll('[data-year]');
+  var current = null;
+  var yo = new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(e.isIntersecting){
+        var y = e.target.getAttribute('data-year');
+        if(y && y !== current){ current = y; num.textContent = y; }
+      }
+    });
+  },{rootMargin:'-40% 0px -50% 0px'});
+  dated.forEach(function(el){ yo.observe(el); });
+  window.addEventListener('scroll', function(){
+    hud.classList.toggle('on', window.scrollY > 320);
+  }, {passive:true});
+
+  // Ledger active state
+  var links = document.querySelectorAll('nav.ledger a');
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute('href').slice(1)] = a; });
+  var no = new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(a){ a.classList.remove('active'); });
+        var a = map[e.target.id]; if(a){ a.classList.add('active'); }
+      }
+    });
+  },{rootMargin:'-25% 0px -60% 0px'});
+  Object.keys(map).forEach(function(id){
+    var el = document.getElementById(id); if(el){ no.observe(el); }
+  });
+})();
+</script>
+</body>
+</html>
